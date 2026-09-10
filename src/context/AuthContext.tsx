@@ -1,69 +1,87 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { 
+  auth, 
+  googleProvider, 
+  signInWithPopup, 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut 
+} from '../services/firebase';
+import { api } from '../services/api';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check localStorage for a dummy session
-    const storedUser = localStorage.getItem('pricepilot_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem('pricepilot_user');
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        // We sync the user with our backend MongoDB to ensure they exist in our DB
+        try {
+          const token = await firebaseUser.getIdToken();
+          const { data } = await api.post('/auth/sync', {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setUser({
+            ...data.user,
+            firebaseUid: firebaseUser.uid
+          });
+        } catch (error) {
+          console.error('Error syncing user with backend:', error);
+          setUser({
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName,
+            email: firebaseUser.email,
+            profilePicture: firebaseUser.photoURL
+          });
+        }
+      } else {
+        setUser(null);
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = async (email, password) => {
-    // Mock API call
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email && password) {
-          const mockUser = { id: 1, name: 'Demo User', email };
-          setUser(mockUser);
-          localStorage.setItem('pricepilot_user', JSON.stringify(mockUser));
-          resolve(mockUser);
-        } else {
-          reject(new Error('Invalid credentials'));
-        }
-      }, 1000);
-    });
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      return result.user;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
 
   const register = async (name, email, password) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockUser = { id: 2, name, email };
-        setUser(mockUser);
-        localStorage.setItem('pricepilot_user', JSON.stringify(mockUser));
-        resolve(mockUser);
-      }, 1000);
-    });
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('pricepilot_user');
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      return result.user;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
   };
 
   const loginWithGoogle = async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockUser = { id: 3, name: 'Google User', email: 'google@example.com' };
-        setUser(mockUser);
-        localStorage.setItem('pricepilot_user', JSON.stringify(mockUser));
-        resolve(mockUser);
-      }, 1000);
-    });
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    await firebaseSignOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, loginWithGoogle }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

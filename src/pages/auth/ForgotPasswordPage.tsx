@@ -5,6 +5,8 @@ import * as z from 'zod';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../../services/firebase';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 
@@ -23,14 +25,13 @@ export function ForgotPasswordPage() {
     resolver: zodResolver(forgotPasswordSchema),
   });
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: z.infer<typeof forgotPasswordSchema>) => {
     try {
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await sendPasswordResetEmail(auth, data.email);
       setIsSuccess(true);
       toast.success('Reset link sent!');
     } catch (error) {
-      toast.error('Something went wrong. Please try again.');
+      toast.error(error.message || 'Something went wrong. Please try again.');
     }
   };
 

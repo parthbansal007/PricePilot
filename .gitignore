@@ -10,7 +10,23 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# Environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 *.local
+
+# API keys, certificates, and credentials
+*.pem
+*.key
+*.cert
+*.crt
+credentials.json
+client_secret.json
+firebase-adminsdk-*.json
+.npmrc
 
 # Editor directories and files
 .vscode/*

@@ -1,16 +1,46 @@
-# React + Vite
+# AI Shopping Assistant / PricePilot AI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+PricePilot is an intelligent shopping assistant that tracks product prices, manages your budget, provides personalized AI purchasing advice, and helps you save money.
 
-Currently, two official plugins are available:
+## Features
+- **Product Search & Comparison**: Uses Google Shopping API (via SerpApi) to search for products and find the best deals across retailers.
+- **Price Tracking**: Periodically checks prices in the background.
+- **Price History**: Visualizes the price trend over time.
+- **Budget Planner**: Track expenses and manage your shopping budget.
+- **AI Advisor (Smart Buy Score)**: Integrates Google Gemini API to give personalized buying recommendations based on price history and budget.
+- **AWS-Ready**: Designed for deployment on AWS App Runner and Amplify with S3 storage and CloudWatch monitoring.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Technology Stack
+- **Frontend**: React, Vite, Tailwind CSS, Recharts
+- **Backend**: Node.js, Express
+- **Database**: MongoDB Atlas (Mongoose)
+- **Authentication**: Firebase Authentication
+- **External APIs**: SerpApi, Google Gemini
 
-## React Compiler
+## Architecture
+See `AWS_DEPLOYMENT.md` and `ALTERNATIVE_DEPLOYMENT.md` for detailed architecture flows.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Environment Variables
+Copy `.env.example` to `.env` (in the root for frontend, and in `server/` for backend) and fill in your keys.
 
-## Expanding the Oxlint configuration
+## Quick Start (Local Development)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Frontend
+```bash
+npm install
+npm run dev
+```
+
+### Backend
+```bash
+cd server
+npm install
+npm run dev
+```
+By default, the backend will run on `http://localhost:5000`. Ensure `VITE_API_BASE_URL=http://localhost:5000/api` is set for the frontend.
+
+## Documentation
+- [API Documentation](API.md)
+- [Database Schema](DATABASE.md)
+- [AWS Deployment Guide](AWS_DEPLOYMENT.md)
+- [Alternative Deployment](ALTERNATIVE_DEPLOYMENT.md)
