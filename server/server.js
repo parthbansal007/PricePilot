@@ -7,6 +7,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config({ override: true });
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
@@ -52,7 +53,12 @@ app.get('/api/health', (req, res) => {
 
 // Catch-all route to serve React app for non-API requests (fixes 404 on refresh)
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  const indexPath = path.join(__dirname, '../dist/index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Frontend build not found. If this is a production deployment, please ensure the frontend is built.');
+  }
 });
 
 // Database connection
