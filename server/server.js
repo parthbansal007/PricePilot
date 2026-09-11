@@ -51,7 +51,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Catch-all route to serve React app for non-API requests (fixes 404 on refresh)
-app.get('*', (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
