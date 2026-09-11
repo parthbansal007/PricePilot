@@ -18,7 +18,7 @@ export const runPriceCheckJob = async () => {
     for (const productId of uniqueProductIds) {
       try {
         if (!process.env.PRODUCT_SEARCH_API_KEY && process.env.USE_MOCK_DATA !== 'true') {
-          console.log(`Mock mode: skipping real price fetch for ${productId}`);
+          // Mock mode: skipping real price fetch (silenced to prevent large log output)
           continue; 
         }
 

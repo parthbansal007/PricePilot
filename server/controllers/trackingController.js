@@ -59,14 +59,17 @@ export const getTrackedProducts = async (req, res) => {
     
     // Fetch price history for each tracked product
     const enhancedProducts = await Promise.all(trackedProducts.map(async (tp) => {
-      const history = await PriceHistory.find({ productId: tp.productId._id }).sort({ timestamp: 1 });
+      const history = await PriceHistory.find({ productId: tp.productId._id })
+        .sort({ timestamp: -1 })
+        .limit(30);
+        
       const currentPrice = tp.productId.currentPrice;
       
       return {
         ...tp.toObject(),
         productName: tp.productId.name || tp.productName, // ensure name is there
         currentPrice: currentPrice,
-        priceHistory: history
+        priceHistory: history.reverse()
       };
     }));
 

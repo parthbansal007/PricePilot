@@ -31,6 +31,9 @@ app.use(express.json());
 // Serve static files from public/uploads for LocalStorageProvider
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
+// Serve static files from the React frontend build
+app.use(express.static(path.join(__dirname, '../dist')));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -45,6 +48,11 @@ app.use('/api/profile', profileRoutes);
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'PricePilot API is running' });
+});
+
+// Catch-all route to serve React app for non-API requests (fixes 404 on refresh)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Database connection
