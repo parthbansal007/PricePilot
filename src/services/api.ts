@@ -32,6 +32,11 @@ api.interceptors.request.use(
 // Add a response interceptor to handle token expiration/unauthorized access globally
 api.interceptors.response.use(
   (response) => {
+    // Catch misconfigured API URLs that return the SPA's index.html
+    if (typeof response.data === 'string' && response.data.trim().startsWith('<')) {
+      console.error('API Error: Received HTML instead of JSON. VITE_API_BASE_URL might be misconfigured.');
+      return Promise.reject(new Error('Invalid API response'));
+    }
     return response;
   },
   (error) => {

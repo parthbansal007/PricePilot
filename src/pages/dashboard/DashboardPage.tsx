@@ -58,7 +58,9 @@ export function DashboardPage() {
     loadDashboard();
   }, []);
 
-  const spent = metrics.budgetTotal - metrics.budgetRemaining;
+  const budgetRemaining = metrics?.budgetRemaining ?? 0;
+  const budgetTotal = metrics?.budgetTotal ?? 0;
+  const spent = budgetTotal - budgetRemaining;
 
   return (
     <div className="space-y-6">
@@ -86,7 +88,7 @@ export function DashboardPage() {
             <Heart className="w-5 h-5 text-accent" />
             <span className="font-medium">Wishlist Items</span>
           </div>
-          <div className="text-3xl font-bold text-textPrimary">{isLoading ? '-' : metrics.wishlistCount}</div>
+          <div className="text-3xl font-bold text-textPrimary">{isLoading ? '-' : (metrics?.wishlistCount ?? 0)}</div>
         </div>
         
         <div className="bg-white p-5 rounded-xl border border-borderLight shadow-sm">
@@ -94,7 +96,7 @@ export function DashboardPage() {
             <Target className="w-5 h-5 text-primary" />
             <span className="font-medium">Tracked Products</span>
           </div>
-          <div className="text-3xl font-bold text-textPrimary">{isLoading ? '-' : metrics.trackedCount}</div>
+          <div className="text-3xl font-bold text-textPrimary">{isLoading ? '-' : (metrics?.trackedCount ?? 0)}</div>
         </div>
         
         <div className="bg-white p-5 rounded-xl border border-borderLight shadow-sm">
@@ -102,7 +104,7 @@ export function DashboardPage() {
             <TrendingDown className="w-5 h-5 text-accent" />
             <span className="font-medium">Budget Remaining</span>
           </div>
-          <div className="text-3xl font-bold text-textPrimary">{isLoading ? '-' : `₹${metrics.budgetRemaining.toLocaleString()}`}</div>
+          <div className="text-3xl font-bold text-textPrimary">{isLoading ? '-' : `₹${budgetRemaining.toLocaleString()}`}</div>
         </div>
         
         <div className="bg-white p-5 rounded-xl border border-borderLight shadow-sm">
