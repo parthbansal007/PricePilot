@@ -2,13 +2,26 @@ import axios from 'axios';
 import { auth } from './firebase';
 
 let baseUrl = import.meta.env.VITE_API_BASE_URL;
-// Automatically append /api if the user forgot it in their environment variables
-if (baseUrl && !baseUrl.endsWith('/api') && !baseUrl.endsWith('/api/')) {
-  baseUrl = baseUrl.replace(/\/$/, '') + '/api';
+
+// Debugging: log what Vite injected
+console.log("Vite injected VITE_API_BASE_URL as:", baseUrl);
+
+if (baseUrl) {
+  // Remove quotes if the user accidentally added them in Render dashboard
+  baseUrl = baseUrl.replace(/^["']|["']$/g, '');
+  if (!baseUrl.endsWith('/api') && !baseUrl.endsWith('/api/')) {
+    baseUrl = baseUrl.replace(/\/$/, '') + '/api';
+  }
+} else if (import.meta.env.PROD) {
+  // If undefined in production, warn the user they forgot to set it or rebuild
+  console.warn("VITE_API_BASE_URL is missing in production! API calls will use relative path '/api' which will fail if frontend and backend are hosted on separate domains.");
 }
 
+const finalBaseUrl = baseUrl || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
+console.log("Final computed API baseURL:", finalBaseUrl);
+
 export const api = axios.create({
-  baseURL: baseUrl || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'),
+  baseURL: finalBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
