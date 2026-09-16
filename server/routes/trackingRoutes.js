@@ -4,7 +4,7 @@ import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.post('/cron-run', runCronJob); // External cron triggers this
+router.all('/cron-run', runCronJob); // External cron triggers this (GET or POST)
 router.post('/', protect, addTracking);
 router.get('/', protect, getTrackedProducts);
 router.delete('/:id', protect, removeTracking);

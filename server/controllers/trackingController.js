@@ -118,8 +118,10 @@ export const runCronJob = async (req, res) => {
       return res.status(500).json({ message: 'CRON_SECRET not configured on server' });
     }
 
-    // Expecting "Bearer <SECRET>" or just matching a custom header
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    // Expecting "Bearer <SECRET>" or a query parameter "?secret=<SECRET>"
+    const providedSecret = authHeader?.replace('Bearer ', '') || req.query.secret;
+
+    if (providedSecret !== cronSecret) {
       return res.status(401).json({ message: 'Unauthorized: Invalid cron secret' });
     }
 
