@@ -1,8 +1,14 @@
 import axios from 'axios';
 import { auth } from './firebase';
 
+let baseUrl = import.meta.env.VITE_API_BASE_URL;
+// Automatically append /api if the user forgot it in their environment variables
+if (baseUrl && !baseUrl.endsWith('/api') && !baseUrl.endsWith('/api/')) {
+  baseUrl = baseUrl.replace(/\/$/, '') + '/api';
+}
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'),
+  baseURL: baseUrl || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'),
   headers: {
     'Content-Type': 'application/json',
   },
