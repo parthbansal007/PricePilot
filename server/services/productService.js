@@ -91,6 +91,9 @@ export const getProductDetails = async (id) => {
       internalProduct = await Product.findById(id);
       if (internalProduct) {
         providerId = internalProduct.providerProductId;
+      } else {
+        // This is a MongoDB ID but the product was deleted from the DB
+        throw new Error('Invalid product ID');
       }
     }
 
