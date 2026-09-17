@@ -67,6 +67,8 @@ export const getTrackedProducts = async (req, res) => {
       
       return {
         ...tp.toObject(),
+        productId: tp.productId._id,
+        productData: tp.productId,
         productName: tp.productId.name || tp.productName, // ensure name is there
         currentPrice: currentPrice,
         priceHistory: history.reverse()
