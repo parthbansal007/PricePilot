@@ -1,9 +1,19 @@
 import express from 'express';
+import { z } from 'zod';
 import { getAIAdvice } from '../controllers/advisorController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { validateRequest } from '../middleware/validateRequest.js';
+import { strictSearchAdvisorLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-router.post('/', protect, getAIAdvice);
+const adviceBodySchema = {
+  body: z.object({
+    message: z.string().min(1, 'Message is required').max(1000),
+    productId: z.string().optional()
+  })
+};
+
+router.post('/', protect, strictSearchAdvisorLimiter, validateRequest(adviceBodySchema), getAIAdvice);
 
 export default router;

@@ -1,0 +1,222 @@
+[
+  {
+    "id": 1,
+    "category": "laptops",
+    "query": "MacBook Air M3 16GB",
+    "manualCheck": {
+      "retailer": "Amazon",
+      "referencePrice": 124990,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 2,
+    "category": "laptops",
+    "query": "Lenovo Legion Pro 5 16IRX9",
+    "manualCheck": {
+      "retailer": "Lenovo / Amazon",
+      "referencePrice": 149990,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 3,
+    "category": "laptops",
+    "query": "ASUS TUF Gaming A15",
+    "manualCheck": {
+      "retailer": "Amazon / Flipkart",
+      "referencePrice": 72990,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 4,
+    "category": "laptops",
+    "query": "HP Pavilion 15",
+    "manualCheck": {
+      "retailer": "Amazon / HP",
+      "referencePrice": 64990,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 5,
+    "category": "laptops",
+    "query": "Dell Inspiron 14",
+    "manualCheck": {
+      "retailer": "Amazon / Dell",
+      "referencePrice": 58990,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 6,
+    "category": "phones",
+    "query": "iPhone 16 128GB",
+    "manualCheck": {
+      "retailer": "Amazon / Apple",
+      "referencePrice": 79900,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 7,
+    "category": "phones",
+    "query": "Samsung Galaxy S24 Ultra",
+    "manualCheck": {
+      "retailer": "Amazon / Samsung",
+      "referencePrice": 119999,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 8,
+    "category": "phones",
+    "query": "OnePlus 12 5G",
+    "manualCheck": {
+      "retailer": "Amazon / OnePlus",
+      "referencePrice": 59999,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 9,
+    "category": "phones",
+    "query": "Google Pixel 8a",
+    "manualCheck": {
+      "retailer": "Flipkart",
+      "referencePrice": 49999,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 10,
+    "category": "phones",
+    "query": "Nothing Phone 2a",
+    "manualCheck": {
+      "retailer": "Flipkart",
+      "referencePrice": 23999,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 11,
+    "category": "headphones",
+    "query": "Sony WH-1000XM5",
+    "manualCheck": {
+      "retailer": "Amazon / Croma",
+      "referencePrice": 26990,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 12,
+    "category": "headphones",
+    "query": "Apple AirPods Pro 2",
+    "manualCheck": {
+      "retailer": "Amazon / Apple",
+      "referencePrice": 21900,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 13,
+    "category": "headphones",
+    "query": "Bose QuietComfort Ultra",
+    "manualCheck": {
+      "retailer": "Amazon",
+      "referencePrice": 32900,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 14,
+    "category": "headphones",
+    "query": "Sennheiser Momentum 4",
+    "manualCheck": {
+      "retailer": "Amazon",
+      "referencePrice": 24990,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 15,
+    "category": "headphones",
+    "query": "boAt Nirvana Ion",
+    "manualCheck": {
+      "retailer": "Amazon / Flipkart",
+      "referencePrice": 1999,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 16,
+    "category": "monitors",
+    "query": "LG 27GP850-B",
+    "manualCheck": {
+      "retailer": "Amazon",
+      "referencePrice": 28999,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 17,
+    "category": "monitors",
+    "query": "Samsung Odyssey G7 27 inch",
+    "manualCheck": {
+      "retailer": "Amazon / Samsung",
+      "referencePrice": 44999,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 18,
+    "category": "monitors",
+    "query": "BenQ GW2780",
+    "manualCheck": {
+      "retailer": "Amazon",
+      "referencePrice": 11490,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 19,
+    "category": "monitors",
+    "query": "Acer Nitro VG240Y",
+    "manualCheck": {
+      "retailer": "Amazon / Flipkart",
+      "referencePrice": 8499,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  },
+  {
+    "id": 20,
+    "category": "monitors",
+    "query": "Dell S2722QC 4K",
+    "manualCheck": {
+      "retailer": "Amazon / Dell",
+      "referencePrice": 34990,
+      "currency": "INR",
+      "dateChecked": "2026-10-18"
+    }
+  }
+]

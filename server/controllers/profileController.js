@@ -58,11 +58,15 @@ export const uploadProfilePicture = async (req, res) => {
 
     const fileUrl = await storageService.uploadFile(req.file);
 
-    const user = await User.findOneAndUpdate(
+    const updatedUser = await User.findOneAndUpdate(
       { firebaseUid: userId },
       { profilePicture: fileUrl },
       { new: true }
     );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     res.json({ message: 'Profile picture updated', profilePicture: fileUrl });
   } catch (error) {

@@ -1,8 +1,21 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { z } from 'zod';
 import PriceHistory from '../models/PriceHistory.js';
 import Budget from '../models/Budget.js';
 import Expense from '../models/Expense.js';
 import { getProductDetails } from './productService.js';
+import { logger } from '../utils/logger.js';
+
+const adviceOutputSchema = z.object({
+  recommendation: z.enum(['BUY_NOW', 'BUY', 'WAIT', 'CONSIDER']).default('CONSIDER'),
+  smartBuyScore: z.number().min(0).max(100).default(50),
+  explanation: z.string().min(1),
+  priceAssessment: z.string().default(''),
+  trendAssessment: z.string().default(''),
+  budgetAssessment: z.string().default(''),
+  caution: z.string().default(''),
+  alternatives: z.array(z.any()).default([])
+});
 
 export const calculatePriceStatistics = async (productId, currentPrice, budget, remainingBudget) => {
   let smartBuyScore = 50;
@@ -109,15 +122,23 @@ export const getAIAdvice = async (message, productId, userId) => {
     stats = await calculatePriceStatistics(productId, currentPrice, budget, remainingBudget);
   }
 
+  // Pure deterministic statistical fallback
+  const getDeterministicResult = (notice = null) => ({
+    recommendation: stats.recommendation,
+    smartBuyScore: stats.smartBuyScore,
+    explanation: notice || `Statistical guidance based on current pricing and history. ${stats.priceContext}`,
+    factors: stats.factors,
+    currentPrice,
+    historicalAverage: stats.historicalAverage,
+    priceAssessment: stats.priceContext,
+    trendAssessment: stats.trend,
+    budgetAssessment: budget ? (currentPrice <= remainingBudget ? "Within budget" : "Exceeds budget") : "No budget set",
+    caution: "Computed deterministically by server engine.",
+    alternatives: []
+  });
+
   if (!process.env.GEMINI_API_KEY) {
-    return {
-      recommendation: stats.recommendation, smartBuyScore: stats.smartBuyScore,
-      explanation: "AI advisor is temporarily unavailable (Missing API Key). Displaying statistical analysis only.",
-      factors: stats.factors, currentPrice, historicalAverage: stats.historicalAverage,
-      priceAssessment: stats.priceContext, trendAssessment: stats.trend,
-      budgetAssessment: budget ? (currentPrice <= remainingBudget ? "Within budget" : "Exceeds budget") : "No budget set",
-      caution: "Recommendations based purely on historical algorithms, AI analysis unavailable."
-    };
+    return getDeterministicResult("AI advisor unavailable (Missing GEMINI_API_KEY). Statistical breakdown only.");
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -134,7 +155,7 @@ export const getAIAdvice = async (message, productId, userId) => {
     
     Return JSON strictly matching this schema:
     {
-      "recommendation": "BUY_NOW", // BUY_NOW, BUY, WAIT, or CONSIDER
+      "recommendation": "${stats.recommendation}",
       "smartBuyScore": ${stats.smartBuyScore},
       "explanation": "Brief advice overview...",
       "priceAssessment": "Evaluation of current price vs history...",
@@ -145,15 +166,45 @@ export const getAIAdvice = async (message, productId, userId) => {
     }
   `;
 
-  try {
-    const result = await model.generateContent({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } });
-    let textResponse = result.response.text();
-    if (textResponse.startsWith('\`\`\`json')) textResponse = textResponse.replace(/^\`\`\`json/, '').replace(/\`\`\`$/, '').trim();
-    const parsedResponse = JSON.parse(textResponse);
-    return { ...parsedResponse, factors: stats.factors, currentPrice, historicalAverage: stats.historicalAverage };
-  } catch (error) {
-    return { recommendation: stats.recommendation, smartBuyScore: stats.smartBuyScore, explanation: "AI analysis failed.", factors: stats.factors, currentPrice, historicalAverage: stats.historicalAverage, priceAssessment: stats.priceContext, trendAssessment: stats.trend, budgetAssessment: "Unknown", caution: "AI generation failed.", alternatives: [] };
+  // Try calling Gemini with 1 retry on Zod validation or parse failure
+  let attempts = 0;
+  while (attempts < 2) {
+    attempts++;
+    try {
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      });
+
+      let textResponse = result.response.text();
+      if (textResponse.startsWith('```json')) {
+        textResponse = textResponse.replace(/^```json/, '').replace(/```$/, '').trim();
+      }
+
+      const rawJson = JSON.parse(textResponse);
+      const parsed = adviceOutputSchema.safeParse(rawJson);
+
+      if (parsed.success) {
+        // Crucial Invariant: Gemini must NEVER set or override scores, verdicts, or prices!
+        return {
+          ...parsed.data,
+          recommendation: stats.recommendation, // Deterministically enforced
+          smartBuyScore: stats.smartBuyScore,   // Deterministically enforced
+          factors: stats.factors,
+          currentPrice,
+          historicalAverage: stats.historicalAverage
+        };
+      } else {
+        logger.warn({ attempt: attempts, errors: parsed.error.issues }, 'Gemini advice failed Zod schema validation; retrying');
+      }
+    } catch (err) {
+      logger.warn({ attempt: attempts, error: err.message }, 'Gemini advice call failed; retrying if attempts left');
+    }
   }
+
+  // Graceful deterministic fallback after 1 retry
+  logger.warn('Gemini advice generation failed after retry; falling back to deterministic result.');
+  return getDeterministicResult("AI advice unavailable. Providing deterministic analysis.");
 };
 
 export const explainBetterConfiguration = async (selectedProduct, alternativeProduct, score, reasons, remainingBudget) => {
@@ -177,10 +228,19 @@ export const explainBetterConfiguration = async (selectedProduct, alternativePro
     Provide a concise (2-3 sentences) explanation suitable for the UI under the "Why we recommend it" section.
   `;
 
-  try {
-    const result = await model.generateContent(prompt);
-    return result.response.text().trim();
-  } catch (error) {
-    return "Recommended due to a higher value score considering price and specs.";
+  let attempts = 0;
+  while (attempts < 2) {
+    attempts++;
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      if (text && text.length > 5) {
+        return text;
+      }
+    } catch (error) {
+      logger.warn({ attempt: attempts, error: error.message }, 'Gemini explanation failed');
+    }
   }
+
+  return "Recommended due to a higher value score considering price and specifications.";
 };

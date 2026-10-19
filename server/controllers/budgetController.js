@@ -1,7 +1,7 @@
 import Budget from '../models/Budget.js';
 import Expense from '../models/Expense.js';
 import SavingsGoal from '../models/SavingsGoal.js';
-import mongoose from 'mongoose';
+import { logger } from '../utils/logger.js';
 
 // @desc    Get user budget
 // @route   GET /api/budget
@@ -199,6 +199,7 @@ export const getSavingsGoals = async (req, res) => {
     const goals = await SavingsGoal.find({ userId });
     res.json(goals);
   } catch (error) {
+    logger.error({ error: error.message }, 'Error fetching savings goals');
     res.status(500).json({ message: 'Server error while fetching savings goals.' });
   }
 };
@@ -217,6 +218,7 @@ export const addSavingsGoal = async (req, res) => {
     const goal = await SavingsGoal.create(goalData);
     res.status(201).json(goal);
   } catch (error) {
+    logger.error({ error: error.message }, 'Error creating savings goal');
     res.status(500).json({ message: 'Server error while creating savings goal.' });
   }
 };

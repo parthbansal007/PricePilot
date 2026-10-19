@@ -1,11 +1,19 @@
 import express from 'express';
+import { z } from 'zod';
 import { getNotifications, markAsRead, markAllAsRead } from '../controllers/notificationController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { validateRequest } from '../middleware/validateRequest.js';
 
 const router = express.Router();
 
+const idParamSchema = {
+  params: z.object({
+    id: z.string().min(1, 'Notification ID is required')
+  })
+};
+
 router.get('/', protect, getNotifications);
-router.patch('/read-all', protect, markAllAsRead); // this must be above /:id
-router.patch('/:id/read', protect, markAsRead);
+router.patch('/read-all', protect, markAllAsRead);
+router.patch('/:id/read', protect, validateRequest(idParamSchema), markAsRead);
 
 export default router;

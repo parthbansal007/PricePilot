@@ -40,12 +40,12 @@ export const getProductDetails = async (req, res) => {
 // @access  Private
 export const compareProducts = async (req, res) => {
   try {
-    const { q } = req.query;
-    if (!q) {
+    const queryStr = req.query.query || req.query.q;
+    if (!queryStr) {
       return res.status(400).json({ message: 'Search query is required for comparison' });
     }
 
-    const results = await productService.comparePrices(q);
+    const results = await productService.comparePrices(queryStr);
     res.json(results);
   } catch (error) {
     console.error('Product compare error:', error.message);

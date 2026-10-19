@@ -107,10 +107,21 @@ export const removeTracking = async (req, res) => {
 };
 
 import { runPriceCheckJob } from '../jobs/priceTrackingJob.js';
+import crypto from 'crypto';
+
+// Constant-time comparison using SHA-256 digests
+const verifySecretTimingSafe = (provided, expected) => {
+  if (!provided || !expected || typeof provided !== 'string' || typeof expected !== 'string') {
+    return false;
+  }
+  const providedHash = crypto.createHash('sha256').update(provided).digest();
+  const expectedHash = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(providedHash, expectedHash);
+};
 
 // @desc    Trigger background price check job
 // @route   POST /api/tracking/cron-run
-// @access  Public (protected by secret)
+// @access  Public (protected by secret in Authorization header only)
 export const runCronJob = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -120,10 +131,18 @@ export const runCronJob = async (req, res) => {
       return res.status(500).json({ message: 'CRON_SECRET not configured on server' });
     }
 
-    // Expecting "Bearer <SECRET>" or a query parameter "?secret=<SECRET>"
-    const providedSecret = authHeader?.replace('Bearer ', '') || req.query.secret;
+    // Strictly disallow query parameter tokens
+    if (req.query.secret) {
+      return res.status(400).json({ message: 'Unauthorized: Secret must be provided exclusively via Authorization header, not query parameters' });
+    }
 
-    if (providedSecret !== cronSecret) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header' });
+    }
+
+    const providedSecret = authHeader.slice(7).trim();
+
+    if (!verifySecretTimingSafe(providedSecret, cronSecret)) {
       return res.status(401).json({ message: 'Unauthorized: Invalid cron secret' });
     }
 

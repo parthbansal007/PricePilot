@@ -105,18 +105,12 @@ export const getProductDetails = async (id) => {
          details.providerProductId = internalProduct.providerProductId;
       }
       const savedProduct = await saveOrUpdateProduct(details);
-      details.id = savedProduct._id.toString();
-      details._id = savedProduct._id.toString();
-      
-      // Create price history record if price is available and product is saved
-      if (details.price && savedProduct) {
-        await PriceHistory.create({
-          productId: savedProduct._id,
-          price: details.price,
-          currency: details.currency || 'INR',
-          retailer: details.retailer
-        });
+      if (savedProduct) {
+        details.id = savedProduct._id.toString();
+        details._id = savedProduct._id.toString();
       }
+      // Note: Side-effect free GET rule: PriceHistory writes have been removed from here.
+      // PriceHistory is recorded exclusively by the background price ingestion job.
     }
     return details;
   } catch (error) {

@@ -1,29 +1,39 @@
-import { initializeApp, cert } from 'firebase-admin/app';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import dotenv from 'dotenv';
+import { logger } from '../utils/logger.js';
 
-dotenv.config();
-
-let adminAuth;
+let adminAuth = null;
 
 try {
-  if (process.env.FIREBASE_PROJECT_ID) {
-    const app = initializeApp({
+  const isProduction = process.env.NODE_ENV === 'production';
+  const projectId = process.env.FIREBASE_PROJECT_ID?.replace(/^"|"$/g, '');
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.replace(/^"|"$/g, '');
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+
+  if (projectId && clientEmail && privateKey) {
+    const apps = getApps();
+    const app = apps.length > 0 ? apps[0] : initializeApp({
       credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID?.replace(/^"|"$/g, ''),
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL?.replace(/^"|"$/g, ''),
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/^"|"$/g, '').replace(/\\n/g, '\n'),
+        projectId,
+        clientEmail,
+        privateKey,
       }),
     });
     adminAuth = getAuth(app);
-    console.log('Firebase Admin initialized successfully');
+    logger.info('Firebase Admin initialized successfully with service credentials');
   } else {
-    console.warn('FIREBASE_PROJECT_ID not found. Firebase Admin is running in mock mode.');
-    const app = initializeApp({ projectId: 'mock-project' });
-    adminAuth = getAuth(app);
+    if (isProduction) {
+      logger.fatal('Missing Firebase Admin credentials in production.');
+      throw new Error('Missing Firebase Admin credentials in production (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)');
+    } else {
+      logger.warn('Firebase Admin credentials not configured. Auth verification will fail unless ALLOW_DEV_AUTH_BYPASS=true in development.');
+    }
   }
 } catch (error) {
-  console.error('Firebase admin initialization error', error.stack);
+  logger.error({ error: error.message }, 'Firebase Admin initialization error');
+  if (process.env.NODE_ENV === 'production') {
+    throw error;
+  }
 }
 
 export { adminAuth };
