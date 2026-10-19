@@ -23,6 +23,8 @@ export const strictSearchAdvisorLimiter = rateLimit({
   }
 });
 
+export const decisionLimiter = strictSearchAdvisorLimiter;
+
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 30, // Max 30 attempts per 15 mins

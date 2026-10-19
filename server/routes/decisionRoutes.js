@@ -1,7 +1,7 @@
 import express from 'express';
 import { getPersonalBuyDecision } from '../controllers/decisionController.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { decisionLimiter } from '../middleware/rateLimiter.js';
+import { strictSearchAdvisorLimiter } from '../middleware/rateLimiter.js';
 import { validateRequest } from '../middleware/validateRequest.js';
 import { z } from 'zod';
 
@@ -14,7 +14,7 @@ const decisionSchema = {
   })
 };
 
-router.use(decisionLimiter);
+router.use(strictSearchAdvisorLimiter);
 router.use(protect);
 
 router.post('/', validateRequest(decisionSchema), getPersonalBuyDecision);
