@@ -174,7 +174,7 @@ export function ProductSearchPage() {
               <div className="relative h-48 bg-secondaryBg overflow-hidden p-4 flex items-center justify-center group-hover:bg-white transition-colors">
                 <img 
                   src={product.image} 
-                  alt={product.name} 
+                  alt={product.title || product.name || 'Product'} 
                   className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute top-2 left-2 bg-danger text-white text-xs font-bold px-2 py-1 rounded">

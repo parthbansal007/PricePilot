@@ -18,7 +18,6 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import helmet from 'helmet';
-import mongoSanitize from 'express-mongo-sanitize';
 
 import { logger, requestLogger } from './utils/logger.js';
 import { initSentry } from './config/sentry.js';
@@ -52,7 +51,25 @@ initSentry(app);
 app.use(helmet({
   contentSecurityPolicy: false // Allow inline scripts/styles for React frontend bundle
 }));
-app.use(mongoSanitize());
+
+// Express 5 compatible MongoDB query injection sanitization (in-place key stripping)
+const sanitizeMongoKeys = (obj) => {
+  if (!obj || typeof obj !== 'object') return;
+  for (const key of Object.keys(obj)) {
+    if (key.startsWith('$') || key.includes('.')) {
+      delete obj[key];
+    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      sanitizeMongoKeys(obj[key]);
+    }
+  }
+};
+
+app.use((req, res, next) => {
+  if (req.body) sanitizeMongoKeys(req.body);
+  if (req.params) sanitizeMongoKeys(req.params);
+  if (req.query) sanitizeMongoKeys(req.query);
+  next();
+});
 
 // Request tracking and structured logging
 app.use(requestLogger);

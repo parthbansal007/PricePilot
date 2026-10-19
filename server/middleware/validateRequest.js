@@ -7,10 +7,15 @@ export const validateRequest = (schemas = {}) => {
   return async (req, res, next) => {
     try {
       if (schemas.params) {
-        req.params = await schemas.params.parseAsync(req.params);
+        const parsedParams = await schemas.params.parseAsync(req.params);
+        Object.assign(req.params, parsedParams);
       }
       if (schemas.query) {
-        req.query = await schemas.query.parseAsync(req.query);
+        const parsedQuery = await schemas.query.parseAsync(req.query);
+        for (const key of Object.keys(req.query)) {
+          if (!(key in parsedQuery)) delete req.query[key];
+        }
+        Object.assign(req.query, parsedQuery);
       }
       if (schemas.body) {
         req.body = await schemas.body.parseAsync(req.body);

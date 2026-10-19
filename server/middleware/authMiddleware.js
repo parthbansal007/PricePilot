@@ -43,3 +43,43 @@ export const protect = async (req, res, next) => {
     res.status(401).json({ message: 'Not authorized, token failed' });
   }
 };
+
+export const optionalProtect = async (req, res, next) => {
+  let token = null;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer ')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  const isDev = process.env.NODE_ENV === 'development';
+  const allowDevBypass = process.env.ALLOW_DEV_AUTH_BYPASS === 'true';
+
+  if (isDev && allowDevBypass && (token === 'dev-bypass' || req.headers['x-dev-bypass'] === 'true')) {
+    req.user = {
+      uid: 'dev-user-001',
+      email: 'dev@pricepilot.local',
+      name: 'Development User',
+    };
+    return next();
+  }
+
+  if (!token) {
+    return next();
+  }
+
+  if (!adminAuth) {
+    return next();
+  }
+
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
