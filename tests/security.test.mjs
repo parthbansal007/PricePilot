@@ -54,7 +54,11 @@ test('Security: authMiddleware blocks dev bypass when ALLOW_DEV_AUTH_BYPASS is n
     assert.strictEqual(nextCalled, false);
     assert.ok(statusCode === 401 || statusCode === 503);
   } finally {
-    process.env.ALLOW_DEV_AUTH_BYPASS = originalEnv;
+    if (originalEnv === undefined) {
+      delete process.env.ALLOW_DEV_AUTH_BYPASS;
+    } else {
+      process.env.ALLOW_DEV_AUTH_BYPASS = originalEnv;
+    }
   }
 });
 

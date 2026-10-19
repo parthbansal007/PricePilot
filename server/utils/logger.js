@@ -48,3 +48,5 @@ export const requestLogger = (req, res, next) => {
 
   next();
 };
+
+export default logger;

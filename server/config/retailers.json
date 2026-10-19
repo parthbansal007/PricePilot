@@ -1,0 +1,86 @@
+{
+  "general": [
+    "amazon",
+    "flipkart",
+    "croma",
+    "reliance digital",
+    "vijay sales",
+    "tata cliq",
+    "jiomart"
+  ],
+  "categories": {
+    "laptops": [
+      "amazon",
+      "flipkart",
+      "croma",
+      "reliance digital",
+      "vijay sales",
+      "lenovo",
+      "dell",
+      "hp",
+      "apple",
+      "asus",
+      "acer"
+    ],
+    "phones": [
+      "amazon",
+      "flipkart",
+      "croma",
+      "reliance digital",
+      "vijay sales",
+      "apple",
+      "samsung",
+      "oneplus",
+      "xiaomi",
+      "motorola"
+    ],
+    "headphones": [
+      "amazon",
+      "flipkart",
+      "croma",
+      "reliance digital",
+      "vijay sales",
+      "headphonezone",
+      "sony",
+      "bose",
+      "sennheiser",
+      "boat"
+    ],
+    "monitors": [
+      "amazon",
+      "flipkart",
+      "croma",
+      "reliance digital",
+      "vijay sales",
+      "mdcomputers",
+      "vedantcomputers",
+      "primeabgb",
+      "samsung",
+      "lg",
+      "dell",
+      "benq"
+    ]
+  },
+  "accessoryKeywords": [
+    "cover",
+    "case",
+    "protector",
+    "charger",
+    "cable",
+    "screen guard",
+    "tempered glass",
+    "skin",
+    "stand",
+    "mount",
+    "strap",
+    "band",
+    "adapter",
+    "sleeve",
+    "pouch",
+    "stylus pen"
+  ],
+  "outlierFilter": {
+    "minFractionOfMedian": 0.2,
+    "maxMultipleOfMedian": 4.0
+  }
+}
