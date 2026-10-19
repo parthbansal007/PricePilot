@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PricePilot AI</title>
+  <style>
+    body {
+      width: 320px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    h1 {
+      font-size: 16px;
+      margin: 0 0 12px 0;
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    label {
+      font-size: 11px;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      background: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      color: white;
+      font-size: 12px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      background: #6366f1;
+      color: white;
+      text-align: center;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 8px;
+      text-decoration: none;
+    }
+    .btn:hover {
+      background: #4f46e5;
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #cbd5e1;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>✈️ PricePilot AI</h1>
+  <div class="card">
+    <label for="jwt-token">PricePilot Sync Token</label>
+    <input type="text" id="jwt-token" placeholder="Paste login token for wallet sync" />
+    <div class="checkbox-row">
+      <input type="checkbox" id="consent-check" checked />
+      <label for="consent-check" style="margin: 0;">Allow anonymous price sharing</label>
+    </div>
+    <button class="btn" id="save-btn">Save Settings</button>
+  </div>
+  <a class="btn" href="https://pricepilot-zr6n.onrender.com" target="_blank">Open Web Dashboard</a>
+
+  <script src="popup.js"></script>
+</body>
+</html>

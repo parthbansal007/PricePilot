@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { getAIAdvice } from '../controllers/advisorController.js';
+import { getAIAdvice, chatWithAgent } from '../controllers/advisorController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { validateRequest } from '../middleware/validateRequest.js';
 import { strictSearchAdvisorLimiter } from '../middleware/rateLimiter.js';
@@ -15,5 +15,7 @@ const adviceBodySchema = {
 };
 
 router.post('/', protect, strictSearchAdvisorLimiter, validateRequest(adviceBodySchema), getAIAdvice);
+router.post('/chat', protect, strictSearchAdvisorLimiter, chatWithAgent);
 
 export default router;
+

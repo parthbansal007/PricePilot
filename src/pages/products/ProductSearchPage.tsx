@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Star, MapPin, Tag } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Filter, Star, MapPin, Bell } from 'lucide-react';
 import { productService } from '../../services/productService';
+import { trackingService } from '../../services/trackingService';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
 import { Link, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 export function ProductSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,14 +13,16 @@ export function ProductSearchPage() {
 
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState(initialCategory);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
+  const debounceTimerRef = useRef<any>(null);
 
-  const fetchProducts = async (searchQuery, categoryFilter) => {
+  const fetchProducts = async (searchQuery: string, categoryFilter: string) => {
     setIsLoading(true);
     try {
       const results = await productService.searchProducts(searchQuery, { category: categoryFilter });
-      setProducts(results);
+      setProducts(results || []);
     } catch (error) {
       console.error("Error fetching products", error);
     } finally {
@@ -28,27 +31,74 @@ export function ProductSearchPage() {
   };
 
   useEffect(() => {
-    // Initial fetch based on URL params
     fetchProducts(initialQuery, initialCategory);
-  }, []); // Run only once on mount
+  }, []);
 
+  // Debounced search when user types in the input
   useEffect(() => {
-    // Update local state when URL params change (e.g. going back)
-    setQuery(searchParams.get('q') || '');
-    setCategory(searchParams.get('category') || '');
-    fetchProducts(searchParams.get('q') || '', searchParams.get('category') || '');
-  }, [searchParams]);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
 
-  const handleSearch = (e) => {
+    debounceTimerRef.current = setTimeout(() => {
+      if (query !== searchParams.get('q')) {
+        setSearchParams({ q: query, category });
+        fetchProducts(query, category);
+      }
+    }, 350);
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [query]);
+
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     setSearchParams({ q: query, category });
+    fetchProducts(query, category);
   };
 
-  const handleCategoryChange = (e) => {
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCategory = e.target.value;
     setCategory(newCategory);
     setSearchParams({ q: query, category: newCategory });
+    fetchProducts(query, newCategory);
   };
+
+  // Optimistic tracking toggle
+  const handleOptimisticTrack = async (e: React.MouseEvent, product: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const pid = product.id || product._id;
+    const isCurrentlyTracked = trackedIds.has(pid);
+
+    // Optimistically update UI
+    setTrackedIds(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyTracked) next.delete(pid);
+      else next.add(pid);
+      return next;
+    });
+
+    toast.success(isCurrentlyTracked ? 'Removed from tracked products' : `Price alert enabled for ${product.title || product.name}!`);
+
+    try {
+      if (!isCurrentlyTracked) {
+        await trackingService.addTracking(pid, product.currentPrice || product.price);
+      }
+    } catch (_err) {
+      // Rollback on failure
+      setTrackedIds(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyTracked) next.add(pid);
+        else next.delete(pid);
+        return next;
+      });
+      toast.error('Could not update tracking alert. Please try again.');
+    }
+  };
+
 
   return (
     <div className="space-y-6">
@@ -130,6 +180,18 @@ export function ProductSearchPage() {
                 <div className="absolute top-2 left-2 bg-danger text-white text-xs font-bold px-2 py-1 rounded">
                   {product.discount || 20}% OFF
                 </div>
+                <button
+                  type="button"
+                  aria-label="Track price alerts"
+                  onClick={(e) => handleOptimisticTrack(e, product)}
+                  className={`absolute top-2 right-2 p-1.5 rounded-full shadow-sm transition-colors ${
+                    trackedIds.has(product.id || product._id)
+                      ? 'bg-primary text-white shadow'
+                      : 'bg-white/90 hover:bg-white text-textSecondary hover:text-primary'
+                  }`}
+                >
+                  <Bell className={`w-3.5 h-3.5 ${trackedIds.has(product.id || product._id) ? 'fill-white' : ''}`} />
+                </button>
               </div>
               <div className="p-4 flex flex-col flex-1">
                 <div className="text-xs text-primary font-bold tracking-wide uppercase mb-1">{product.brand || product.retailer || 'Brand'}</div>

@@ -1,10 +1,12 @@
 import Redis from 'ioredis';
+import mongoose from 'mongoose';
 import { getEnv } from '../config/env.js';
 import logger from '../utils/logger.js';
 import CacheEntry from '../models/CacheEntry.js';
 
 let redisClient = null;
 let redisAvailable = false;
+const localMemoryCache = new Map();
 
 function initRedis() {
   const env = getEnv();
@@ -74,22 +76,35 @@ class CacheService {
       }
     }
 
-    // 2. Fallback to MongoDB TTL Collection
-    try {
-      const entry = await CacheEntry.findOneAndUpdate(
-        { key, expiresAt: { $gt: now } },
-        { $inc: { hits: 1 }, $set: { lastAccessedAt: now } },
-        { new: true }
-      ).lean();
+    // 2. Fallback to MongoDB TTL Collection if connected
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      try {
+        const entry = await CacheEntry.findOneAndUpdate(
+          { key, expiresAt: { $gt: now } },
+          { $inc: { hits: 1 }, $set: { lastAccessedAt: now } },
+          { returnDocument: 'after' }
+        ).lean();
 
-      if (!entry) return null;
+        if (!entry) return null;
 
-      const isStale = entry.staleAt ? now > new Date(entry.staleAt) : false;
-      return { value: entry.value, isStale, hits: entry.hits };
-    } catch (err) {
-      logger.warn({ key, error: err.message }, 'Cache read error');
-      return null;
+        const isStale = entry.staleAt ? now > new Date(entry.staleAt) : false;
+        return { value: entry.value, isStale, hits: entry.hits };
+      } catch (err) {
+        logger.warn({ key, error: err.message }, 'Cache read error');
+        return null;
+      }
     }
+
+    // 3. Fallback to in-memory cache
+    const mem = localMemoryCache.get(key);
+    if (mem) {
+      if (now > mem.expiresAt) {
+        localMemoryCache.delete(key);
+        return null;
+      }
+      return { value: mem.value, isStale: now > mem.staleAt, hits: mem.hits || 1 };
+    }
+    return null;
   }
 
   /**
@@ -100,7 +115,7 @@ class CacheService {
    */
   async set(key, value, options = {}) {
     const hits = options.hits || 0;
-    const ttlSeconds = options.ttlSeconds || this.calculatePopularityTtl(hits, 3600);
+    const ttlSeconds = options.ttlSeconds || (options.ttlMs ? Math.round(options.ttlMs / 1000) : this.calculatePopularityTtl(hits, 3600));
     const staleSeconds = options.staleSeconds || Math.floor(ttlSeconds * 0.5); // Stale at 50% of TTL
     const tags = options.tags || [];
 
@@ -124,24 +139,34 @@ class CacheService {
       }
     }
 
-    // 2. Write to MongoDB
-    try {
-      await CacheEntry.findOneAndUpdate(
-        { key },
-        {
-          $set: {
-            value,
-            expiresAt,
-            staleAt,
-            tags
+    // 2. Write to MongoDB if connected
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      try {
+        await CacheEntry.findOneAndUpdate(
+          { key },
+          {
+            $set: {
+              value,
+              expiresAt,
+              staleAt,
+              tags
+            },
+            $setOnInsert: { hits: 0 }
           },
-          $setOnInsert: { hits: 0 }
-        },
-        { upsert: true }
-      );
-    } catch (err) {
-      logger.warn({ key, error: err.message }, 'MongoDB cache set error');
+          { upsert: true }
+        );
+      } catch (err) {
+        logger.warn({ key, error: err.message }, 'MongoDB cache set error');
+      }
     }
+
+    // 3. Always set in local memory cache
+    localMemoryCache.set(key, {
+      value,
+      staleAt,
+      expiresAt,
+      hits
+    });
   }
 
   /**

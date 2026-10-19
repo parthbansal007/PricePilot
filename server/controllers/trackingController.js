@@ -153,3 +153,49 @@ export const runCronJob = async (req, res) => {
     res.status(500).json({ message: 'Server error running cron job' });
   }
 };
+
+// @desc    Register price protection for a purchased item
+// @route   POST /api/tracking/price-protection
+// @access  Private
+export const addPriceProtection = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const { productId, productTitle, purchasePrice, purchaseDate, protectionDays, retailer, orderId } = req.body;
+
+    if (!productId || !productTitle || !purchasePrice) {
+      return res.status(400).json({ message: 'productId, productTitle, and purchasePrice are required' });
+    }
+
+    const { registerPriceProtection } = await import('../services/priceProtectionService.js');
+    const protection = await registerPriceProtection(userId, {
+      productId,
+      productTitle,
+      purchasePrice: Number(purchasePrice),
+      purchaseDate,
+      protectionDays: protectionDays ? Number(protectionDays) : 14,
+      retailer: retailer || 'Amazon.in',
+      orderId: orderId || ''
+    });
+
+    res.status(201).json(protection);
+  } catch (error) {
+    console.error('Add price protection error:', error);
+    res.status(500).json({ message: error.message || 'Server error creating price protection' });
+  }
+};
+
+// @desc    Get user's active and historical price protections
+// @route   GET /api/tracking/price-protection
+// @access  Private
+export const getPriceProtections = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const { getUserProtections } = await import('../services/priceProtectionService.js');
+    const list = await getUserProtections(userId);
+    res.json(list);
+  } catch (error) {
+    console.error('Get price protections error:', error);
+    res.status(500).json({ message: error.message || 'Server error fetching price protections' });
+  }
+};
+

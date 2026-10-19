@@ -26,6 +26,19 @@ const notificationSchema = new mongoose.Schema(
     read: {
       type: Boolean,
       default: false,
+    },
+    channelsSent: [{
+      type: String,
+      enum: ['IN_APP', 'EMAIL', 'TELEGRAM', 'PUSH', 'SMS', 'WHATSAPP']
+    }],
+    deliveryStatus: {
+      type: String,
+      enum: ['SENT', 'PARTIAL', 'FAILED', 'SUPPRESSED'],
+      default: 'SENT'
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
     }
   },
   {

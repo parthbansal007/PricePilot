@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "PricePilot AI - Smart Buy Assistant",
+  "version": "1.0.0",
+  "description": "Displays real-time Smart Buy Score, optimal wallet card discounts, and personal budget impact across Amazon, Flipkart, and Croma.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*.amazon.in/*",
+    "*://*.flipkart.com/*",
+    "*://*.croma.com/*",
+    "*://localhost:5000/*",
+    "*://pricepilot-zr6n.onrender.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.amazon.in/*",
+        "*://*.flipkart.com/*",
+        "*://*.croma.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PricePilot AI Assistant"
+  }
+}

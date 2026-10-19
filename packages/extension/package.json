@@ -1,0 +1,7 @@
+{
+  "name": "pricepilot-extension",
+  "version": "1.0.0",
+  "description": "PricePilot AI Chrome Extension (MV3) - Live Smart Buy Score, Wallet Card Optimization, and Budget Impact on Indian E-Commerce",
+  "private": true,
+  "type": "module"
+}

@@ -36,7 +36,16 @@ const userSchema = new mongoose.Schema(
     },
     notificationPreferences: {
       emailAlerts: { type: Boolean, default: true },
+      telegramAlerts: { type: Boolean, default: false },
+      pushAlerts: { type: Boolean, default: false },
+      smsAlerts: { type: Boolean, default: false },
+      whatsappAlerts: { type: Boolean, default: false },
+      telegramChatId: { type: String, default: '' },
+      fcmTokens: [{ type: String }],
+      phoneNumber: { type: String, default: '' },
       priceDropThreshold: { type: Number, default: 0 }, // 0 means alert on any drop below target
+      unsubscribed: { type: Boolean, default: false },
+      unsubscribeToken: { type: String, default: () => Math.random().toString(36).substring(2) + Date.now().toString(36) }
     }
   },
   {

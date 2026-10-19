@@ -20,3 +20,31 @@ export const getAIAdvice = async (req, res) => {
     res.status(503).json({ message: error.message || 'AI advisor is temporarily unavailable.' });
   }
 };
+
+// @desc    Conversational AI Shopping Agent with tool use and safety confirmations
+// @route   POST /api/advisor/chat
+// @access  Private
+export const chatWithAgent = async (req, res) => {
+  try {
+    const { message, history, confirmedAction } = req.body;
+    const userId = req.user.uid;
+
+    if (!message && !confirmedAction) {
+      return res.status(400).json({ message: 'Message or confirmedAction is required' });
+    }
+
+    const { handleConversation } = await import('../services/conversationalAgentService.js');
+    const result = await handleConversation({
+      userId,
+      message,
+      history: history || [],
+      confirmedAction: confirmedAction || null
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Conversational Agent error:', error.message);
+    res.status(500).json({ message: error.message || 'Conversational agent error' });
+  }
+};
+

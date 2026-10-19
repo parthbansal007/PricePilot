@@ -1,9 +1,11 @@
 import express from 'express';
+import multer from 'multer';
 import { z } from 'zod';
 import { 
   getBudget, updateBudget, 
   getExpenses, addExpense, updateExpense, deleteExpense, getExpenseSummary,
-  getSavingsGoals, addSavingsGoal
+  getSavingsGoals, addSavingsGoal,
+  scanInvoice, confirmInvoice
 } from '../controllers/budgetController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { validateRequest } from '../middleware/validateRequest.js';
@@ -58,4 +60,14 @@ router.delete('/expenses/:id', protect, validateRequest(idParamSchema), deleteEx
 router.get('/savings-goals', protect, getSavingsGoals);
 router.post('/savings-goals', protect, validateRequest(addSavingsGoalSchema), addSavingsGoal);
 
+// Invoice Scanner
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+router.post('/scan-invoice', protect, upload.single('invoice'), scanInvoice);
+router.post('/confirm-invoice', protect, confirmInvoice);
+
 export default router;
+

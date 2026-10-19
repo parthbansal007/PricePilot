@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, TrendingDown, TrendingUp, CheckCircle, SlidersHorizontal, ArrowRight, Minus } from 'lucide-react';
+import { Star, TrendingDown, TrendingUp, CheckCircle, SlidersHorizontal, Minus, RefreshCw, Zap } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export function BetterConfigurations({ productId }: { productId: string }) {
@@ -80,11 +80,19 @@ export function BetterConfigurations({ productId }: { productId: string }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {data.recommendations.map((rec: any, idx: number) => (
             <div key={idx} className="bg-white rounded-xl border border-borderLight shadow-sm overflow-hidden flex flex-col">
-              {idx === 0 && (
+              {rec.configType === 'REFURBISHED_OPEN_BOX' ? (
+                <div className="bg-emerald-600 text-white text-xs font-bold text-center py-1.5 uppercase tracking-wider flex justify-center items-center gap-1.5">
+                  <RefreshCw className="w-3 h-3" /> Certified Refurbished / Open-Box
+                </div>
+              ) : rec.configType === 'SAME_PRICE_BETTER_SPEC' ? (
+                <div className="bg-cyan-600 text-white text-xs font-bold text-center py-1.5 uppercase tracking-wider flex justify-center items-center gap-1.5">
+                  <Zap className="w-3 h-3" /> Same Price, Better Spec
+                </div>
+              ) : idx === 0 ? (
                 <div className="bg-accent text-white text-xs font-bold text-center py-1.5 uppercase tracking-wider flex justify-center items-center gap-1">
                   <Star className="w-3 h-3 fill-white" /> Top Recommendation
                 </div>
-              )}
+              ) : null}
               <div className="p-5 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="font-bold text-textPrimary text-sm line-clamp-2">{rec.product.title}</h3>

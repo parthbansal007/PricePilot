@@ -222,3 +222,77 @@ export const addSavingsGoal = async (req, res) => {
     res.status(500).json({ message: 'Server error while creating savings goal.' });
   }
 };
+
+// @desc    Scan receipt/invoice with Gemini Vision (Draft mode)
+// @route   POST /api/budget/scan-invoice
+// @access  Private
+export const scanInvoice = async (req, res) => {
+  try {
+    const { scanInvoiceImage } = await import('../services/invoiceScannerService.js');
+    
+    let buffer = req.file?.buffer;
+    let mimeType = req.file?.mimetype || 'image/jpeg';
+    let base64 = req.body?.imageBase64;
+
+    if (!buffer && !base64) {
+      return res.status(400).json({ message: 'Please provide an invoice image (file upload or imageBase64)' });
+    }
+
+    const draftResult = await scanInvoiceImage({ buffer, base64, mimeType });
+    res.json(draftResult);
+  } catch (error) {
+    console.error('Scan invoice error:', error);
+    res.status(500).json({ message: error.message || 'Error processing invoice image' });
+  }
+};
+
+// @desc    Confirm and save scanned invoice into Expense & Warranty Reminder
+// @route   POST /api/budget/confirm-invoice
+// @access  Private
+export const confirmInvoice = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const { title, amount, category, purchaseDate, retailer, warrantyExpiryDate, notes } = req.body;
+
+    if (!title || !amount) {
+      return res.status(400).json({ message: 'Title and amount are required' });
+    }
+
+    const expense = await Expense.create({
+      userId,
+      title,
+      amount: Number(amount),
+      category: category || 'Shopping',
+      date: purchaseDate ? new Date(purchaseDate) : new Date(),
+      retailer: retailer || '',
+      notes: notes || '',
+      type: 'PURCHASE'
+    });
+
+    let warrantyNotification = null;
+    if (warrantyExpiryDate) {
+      const Notification = (await import('../models/Notification.js')).default;
+      warrantyNotification = await Notification.create({
+        userId,
+        type: 'SYSTEM',
+        title: `Warranty Logged: ${title}`,
+        message: `Your warranty for "${title}" from ${retailer || 'merchant'} is registered and valid until ${new Date(warrantyExpiryDate).toLocaleDateString('en-IN')}.`,
+        metadata: {
+          expenseId: expense._id,
+          warrantyExpiryDate,
+          retailer
+        }
+      });
+    }
+
+    res.status(201).json({
+      message: 'Invoice confirmed and saved to budget successfully',
+      expense,
+      warrantyNotification
+    });
+  } catch (error) {
+    console.error('Confirm invoice error:', error);
+    res.status(500).json({ message: error.message || 'Error saving confirmed invoice' });
+  }
+};
+

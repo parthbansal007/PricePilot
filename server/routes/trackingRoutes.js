@@ -1,6 +1,13 @@
 import express from 'express';
 import { z } from 'zod';
-import { addTracking, getTrackedProducts, removeTracking, runCronJob } from '../controllers/trackingController.js';
+import {
+  addTracking,
+  getTrackedProducts,
+  removeTracking,
+  runCronJob,
+  addPriceProtection,
+  getPriceProtections
+} from '../controllers/trackingController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { validateRequest } from '../middleware/validateRequest.js';
 
@@ -26,4 +33,9 @@ router.post('/', protect, validateRequest(addTrackingSchema), addTracking);
 router.get('/', protect, getTrackedProducts);
 router.delete('/:id', protect, validateRequest(idParamSchema), removeTracking);
 
+// Price Protection routes
+router.post('/price-protection', protect, addPriceProtection);
+router.get('/price-protection', protect, getPriceProtections);
+
 export default router;
+
