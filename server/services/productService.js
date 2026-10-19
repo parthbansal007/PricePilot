@@ -7,7 +7,7 @@ import Offer from '../models/Offer.js';
 import cacheService from './cacheService.js';
 import discoveryRouter from './discoveryRouter.js';
 import { understandQuery } from './queryUnderstandingService.js';
-import { filterValidOffers, isAccessoryTitle } from '../utils/retailerFilter.js';
+import { filterValidOffers } from '../utils/retailerFilter.js';
 import { extractProductInfo, calculateMatchScore, normalizeProductTitle } from '../utils/productMatcher.js';
 import IcecatIdentityProvider from '../providers/adapters/IcecatIdentityProvider.js';
 import SerpApiReviewAdapter from '../providers/adapters/SerpApiReviewAdapter.js';

@@ -1,0 +1,92 @@
+{
+  "events": [
+    {
+      "id": "republic_day_sale",
+      "name": "Republic Day Sale",
+      "retailers": ["Amazon", "Flipkart", "Croma", "Reliance Digital"],
+      "startMonth": 1,
+      "startDay": 14,
+      "endMonth": 1,
+      "endDay": 26,
+      "discountCategory": "Electronics, Appliances & Mobiles",
+      "description": "Major annual clearance on electronics and smartphones across Amazon & Flipkart."
+    },
+    {
+      "id": "holi_sale",
+      "name": "Holi Shopping Festival",
+      "retailers": ["Amazon", "Flipkart"],
+      "startMonth": 3,
+      "startDay": 10,
+      "endMonth": 3,
+      "endDay": 25,
+      "discountCategory": "Gadgets & Accessories",
+      "description": "Spring festive discounts across consumer tech."
+    },
+    {
+      "id": "summer_prime_day",
+      "name": "Prime Day & Big Saving Days",
+      "retailers": ["Amazon", "Flipkart"],
+      "startMonth": 7,
+      "startDay": 12,
+      "endMonth": 7,
+      "endDay": 24,
+      "discountCategory": "Laptops, Audio & Flagship Phones",
+      "description": "Mid-year flagship tech sale with exclusive bank cards discounts."
+    },
+    {
+      "id": "independence_day_sale",
+      "name": "Independence Day Freedom Festival",
+      "retailers": ["Amazon", "Flipkart", "Croma"],
+      "startMonth": 8,
+      "startDay": 4,
+      "endMonth": 8,
+      "endDay": 15,
+      "discountCategory": "Universal Electronics",
+      "description": "August mega tech discounts and instant 10% credit card savings."
+    },
+    {
+      "id": "big_billion_days",
+      "name": "The Big Billion Days / Great Indian Festival",
+      "retailers": ["Flipkart", "Amazon", "Croma", "Reliance Digital", "Vijay Sales"],
+      "startMonth": 9,
+      "startDay": 20,
+      "endMonth": 10,
+      "endDay": 25,
+      "discountCategory": "All Categories (Deepest Annual Discounts)",
+      "description": "Biggest annual festival shopping extravaganza in India. Prices reach historical lows."
+    },
+    {
+      "id": "diwali_dhanteras_sale",
+      "name": "Diwali & Dhanteras Tech Dhamaka",
+      "retailers": ["Amazon", "Flipkart"],
+      "startMonth": 10,
+      "startDay": 26,
+      "endMonth": 11,
+      "endDay": 10,
+      "discountCategory": "Consumer Electronics & TVs",
+      "description": "Post-BBD festive round with exchange bonuses and cashback offers."
+    },
+    {
+      "id": "black_friday_india",
+      "name": "Black Friday & Cyber Monday",
+      "retailers": ["Amazon", "Croma"],
+      "startMonth": 11,
+      "startDay": 22,
+      "endMonth": 11,
+      "endDay": 30,
+      "discountCategory": "Global Tech, Laptops & Headphones",
+      "description": "Tech-focused promotions with global gadget price drops."
+    },
+    {
+      "id": "year_end_clearance",
+      "name": "Year-End Grand Clearance",
+      "retailers": ["Amazon", "Flipkart", "Reliance Digital"],
+      "startMonth": 12,
+      "startDay": 22,
+      "endMonth": 12,
+      "endDay": 31,
+      "discountCategory": "Previous Gen Inventory",
+      "description": "Year-end stock clearance before new generation hardware launches."
+    }
+  ]
+}

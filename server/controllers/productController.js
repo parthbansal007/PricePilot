@@ -60,14 +60,44 @@ export const getProductHistory = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Attempt to get history from DB
-    const history = await PriceHistory.find({ productId: id }).sort({ timestamp: 1 });
+    // Attempt to get history from DB matching either productId or canonicalProductId
+    const history = await PriceHistory.find({
+      $or: [{ productId: id }, { canonicalProductId: id }]
+    }).sort({ timestamp: 1 }).lean();
     
     if (history.length === 0) {
-      return res.json({ message: 'Not enough price history available yet.', history: [] });
+      return res.json({
+        message: 'Not enough price history available yet.',
+        history: [],
+        dataSources: { totalPoints: 0, backfilledPoints: 0, selfCollectedPoints: 0, historySpanDays: 0 }
+      });
     }
 
-    res.json({ history });
+    const backfilledPoints = history.filter(h => h.sourceType === 'backfill' || h.source === 'keepa').length;
+    const selfCollectedPoints = history.length - backfilledPoints;
+    const earliest = new Date(history[0].timestamp);
+    const latest = new Date(history[history.length - 1].timestamp);
+    const historySpanDays = Math.max(1, Math.round((latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24)));
+
+    const normalizedHistory = history.map(h => ({
+      _id: h._id,
+      price: h.price,
+      currency: h.currency || 'INR',
+      retailer: h.retailer || 'Unknown',
+      timestamp: h.timestamp,
+      source: h.source || 'provider',
+      sourceType: (h.sourceType === 'backfill' || h.source === 'keepa') ? 'backfill' : 'tracked'
+    }));
+
+    res.json({
+      history: normalizedHistory,
+      dataSources: {
+        totalPoints: history.length,
+        backfilledPoints,
+        selfCollectedPoints,
+        historySpanDays
+      }
+    });
   } catch (error) {
     console.error('Price history error:', error);
     res.status(500).json({ message: 'Server error while fetching price history.' });

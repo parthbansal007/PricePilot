@@ -152,6 +152,16 @@ class ExternalProductProvider {
     }
   }
 
+  async getProductHistoryWithStats(id: string) {
+    try {
+      const response = await api.get(`/products/${id}/history`);
+      return response.data;
+    } catch (e) {
+      console.error("Failed to fetch history with stats", e);
+      return { history: [], dataSources: null };
+    }
+  }
+
   async compareProducts(query: string) {
     try {
       const response = await api.get('/products/compare', { params: { q: query } });

@@ -13,7 +13,8 @@ import {
   ArrowLeft,
   Store,
   CheckCircle,
-  ExternalLink
+  ExternalLink,
+  Database
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { 
@@ -34,6 +35,7 @@ export function ProductDetailsPage() {
   const navigate = useNavigate();
   const [product, setProduct] = useState<any>(null);
   const [priceHistory, setPriceHistory] = useState<any[]>([]);
+  const [dataSources, setDataSources] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWishlisting, setIsWishlisting] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
@@ -52,14 +54,18 @@ export function ProductDetailsPage() {
         const data = await productService.getProductDetails(id);
         setProduct(data);
         
-        // Fetch history if implemented in provider
-        if (productService.getProductHistory) {
-          const history = await productService.getProductHistory(id);
-          if (history && history.length > 0) {
-            setPriceHistory(history.map((h: any) => ({
+        // Fetch history with data source breakdown
+        if (productService.getProductHistoryWithStats) {
+          const res = await productService.getProductHistoryWithStats(id);
+          if (res && res.history && res.history.length > 0) {
+            setPriceHistory(res.history.map((h: any) => ({
               date: new Date(h.timestamp || h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-              price: h.price
+              price: h.price,
+              sourceType: h.sourceType
             })));
+            if (res.dataSources) {
+              setDataSources(res.dataSources);
+            }
           }
         }
       } catch (error) {
@@ -336,6 +342,19 @@ export function ProductDetailsPage() {
               <p className="font-bold text-textPrimary">₹{(product.currentPrice || product.price || 0).toLocaleString()}</p>
             </div>
           </div>
+
+          {dataSources && dataSources.totalPoints > 0 && (
+            <div className="mt-4 pt-3 border-t border-borderLight/60 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-textSecondary gap-1">
+              <span className="flex items-center gap-1.5 font-medium text-textPrimary">
+                <Database className="w-3.5 h-3.5 text-primary" />
+                Verified price history: {dataSources.totalPoints} points ({dataSources.historySpanDays} days history)
+              </span>
+              <span>
+                {dataSources.backfilledPoints > 0 ? `${dataSources.backfilledPoints} Keepa seeded • ` : ''}
+                {dataSources.selfCollectedPoints} PricePilot tracked
+              </span>
+            </div>
+          )}
         </div>
       </div>
       

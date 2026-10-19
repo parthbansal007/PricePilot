@@ -4,7 +4,8 @@ import PriceHistory from '../models/PriceHistory.js';
 import Budget from '../models/Budget.js';
 import Expense from '../models/Expense.js';
 import { getProductDetails } from './productService.js';
-import { logger } from '../utils/logger.js';
+import { calculateSmartBuyScore } from './smartBuyScoreService.js';
+import logger from '../utils/logger.js';
 
 const adviceOutputSchema = z.object({
   recommendation: z.enum(['BUY_NOW', 'BUY', 'WAIT', 'CONSIDER']).default('CONSIDER'),
@@ -17,81 +18,42 @@ const adviceOutputSchema = z.object({
   alternatives: z.array(z.any()).default([])
 });
 
-export const calculatePriceStatistics = async (productId, currentPrice, budget, remainingBudget) => {
-  let smartBuyScore = 50;
-  let recommendation = 'CONSIDER';
-  let factors = [];
-  let priceContext = '';
-  let average = 0;
-  let lowest = currentPrice;
-  let highest = currentPrice;
-  let trend = 'STABLE';
-  let priceDrop = 0;
+/**
+ * Calculate Smart Buy Score V2 and statistics
+ */
+export const calculatePriceStatistics = async (productId, currentPrice, budget, remainingBudget, mrp = null) => {
+  // Query by productId or canonicalProductId
+  const history = await PriceHistory.find({
+    $or: [
+      { productId },
+      { canonicalProductId: productId }
+    ]
+  }).sort({ timestamp: 1 }).lean();
 
-  const history = await PriceHistory.find({ productId }).sort({ timestamp: 1 });
+  const scoreResult = calculateSmartBuyScore({
+    currentPrice,
+    mrp,
+    history,
+    budget,
+    remainingBudget
+  });
 
-  if (history.length > 0) {
-    const prices = history.map(h => h.price);
-    lowest = Math.min(...prices);
-    highest = Math.max(...prices);
-    average = prices.reduce((a, b) => a + b, 0) / prices.length;
-    
-    if (history.length >= 2) {
-      const firstPrice = prices[0];
-      const lastPrice = prices[prices.length - 1];
-      if (lastPrice < firstPrice) {
-        trend = 'DOWN';
-        priceDrop = firstPrice - lastPrice;
-      } else if (lastPrice > firstPrice) {
-        trend = 'UP';
-      }
-    }
-    
-    priceContext = `Price history available. Lowest: ₹${lowest}, Highest: ₹${highest}, Average: ₹${average.toFixed(2)}. Trend: ${trend}. Price Drop: ₹${priceDrop}.`;
-    
-    if (currentPrice > 0) {
-       let score = 50;
-       
-       if (currentPrice <= lowest) {
-         score += 30;
-         factors.push('At or below historical lowest price');
-       } else if (currentPrice < average) {
-         score += 15;
-         factors.push('Below historical average');
-       } else {
-         score -= 20;
-         factors.push('Above historical average');
-       }
-
-       if (budget) {
-          if (currentPrice > remainingBudget) {
-            score -= 30;
-            factors.push('Exceeds remaining budget');
-          } else {
-            score += 10;
-            factors.push('Fits within remaining budget');
-          }
-       }
-
-       smartBuyScore = Math.min(Math.max(score, 0), 100);
-       
-       if (smartBuyScore <= 30) recommendation = 'WAIT';
-       else if (smartBuyScore <= 60) recommendation = 'CONSIDER';
-       else if (smartBuyScore <= 80) recommendation = 'BUY';
-       else recommendation = 'BUY_NOW';
-    }
-  } else {
-    priceContext = 'Not enough price history available yet.';
-    factors.push('Insufficient historical data');
-  }
-
-  return { smartBuyScore, recommendation, factors, priceContext, historicalAverage: average, lowest, highest, trend, priceDrop };
+  return {
+    ...scoreResult,
+    // Backwards-compatible aliases for legacy callers
+    historicalAverage: scoreResult.percentiles.p50,
+    lowest: scoreResult.percentiles.lowest,
+    highest: scoreResult.percentiles.highest,
+    trend: scoreResult.trendAssessment,
+    priceDrop: Math.max(0, scoreResult.percentiles.highest - currentPrice)
+  };
 };
 
 export const getAIAdvice = async (message, productId, userId) => {
   let productContext = '';
   let budgetContext = '';
   let currentPrice = 0;
+  let mrp = null;
 
   const budget = await Budget.findOne({ userId });
   let remainingBudget = 0;
@@ -99,7 +61,7 @@ export const getAIAdvice = async (message, productId, userId) => {
   if (budget) {
     const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const expenses = await Expense.find({
-        userId, date: { $gte: startOfMonth }, type: { $in: ['EXPENSE', 'PURCHASE'] }
+      userId, date: { $gte: startOfMonth }, type: { $in: ['EXPENSE', 'PURCHASE'] }
     });
     totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     remainingBudget = budget.monthlyLimit - totalSpent;
@@ -107,33 +69,56 @@ export const getAIAdvice = async (message, productId, userId) => {
   }
 
   let stats = {
-    smartBuyScore: 50, recommendation: 'CONSIDER', factors: [], priceContext: '',
-    historicalAverage: 0, lowest: 0, highest: 0, trend: 'STABLE', priceDrop: 0
+    smartBuyScore: 50,
+    recommendation: 'CONSIDER',
+    confidence: 'INSUFFICIENT',
+    insufficientHistory: true,
+    percentiles: { p10: 0, p25: 0, p50: 0, p75: 0, p90: 0, lowest: 0, highest: 0, currentPercentile: 50 },
+    dealHonesty: { score: 100, level: 'HONEST', isFakeDiscount: false, flags: [] },
+    breakdown: {},
+    dataSources: { totalPoints: 0, backfilledPoints: 0, selfCollectedPoints: 0, historySpanDays: 0 },
+    factors: [],
+    priceAssessment: '',
+    trendAssessment: 'UNKNOWN',
+    budgetAssessment: '',
+    caution: '',
+    historicalAverage: 0,
+    lowest: 0,
+    highest: 0,
+    trend: 'STABLE',
+    priceDrop: 0
   };
 
   if (productId) {
     try {
       const details = await getProductDetails(productId);
       currentPrice = details.price || 0;
+      mrp = details.bestOffer?.mrp || details.mrp || null;
       productContext = `Product: ${details.title}. Current price: ₹${currentPrice}.`;
-    } catch (e) {
+    } catch (_e) {
       productContext = `Product ID: ${productId}. (Details unavailable).`;
     }
-    stats = await calculatePriceStatistics(productId, currentPrice, budget, remainingBudget);
+    stats = await calculatePriceStatistics(productId, currentPrice, budget, remainingBudget, mrp);
   }
 
   // Pure deterministic statistical fallback
   const getDeterministicResult = (notice = null) => ({
     recommendation: stats.recommendation,
     smartBuyScore: stats.smartBuyScore,
-    explanation: notice || `Statistical guidance based on current pricing and history. ${stats.priceContext}`,
+    confidence: stats.confidence,
+    insufficientHistory: stats.insufficientHistory,
+    percentiles: stats.percentiles,
+    dealHonesty: stats.dealHonesty,
+    breakdown: stats.breakdown,
+    dataSources: stats.dataSources,
+    explanation: notice || `Deterministic Smart Buy Score V2 analysis: ${stats.priceAssessment} ${stats.caution}`,
     factors: stats.factors,
     currentPrice,
     historicalAverage: stats.historicalAverage,
-    priceAssessment: stats.priceContext,
-    trendAssessment: stats.trend,
+    priceAssessment: stats.priceAssessment,
+    trendAssessment: stats.trendAssessment,
     budgetAssessment: budget ? (currentPrice <= remainingBudget ? "Within budget" : "Exceeds budget") : "No budget set",
-    caution: "Computed deterministically by server engine.",
+    caution: stats.caution,
     alternatives: []
   });
 
@@ -146,27 +131,31 @@ export const getAIAdvice = async (message, productId, userId) => {
 
   const prompt = `
     You are an AI Shopping Assistant named PricePilot. User asks: "${message}"
-    Context: ${budgetContext} ${productContext} ${stats.priceContext}
-    Calculated Smart Buy Score: ${stats.smartBuyScore}/100
-    Calculated Recommendation: ${stats.recommendation}
+    Context:
+    - Budget: ${budgetContext}
+    - Product: ${productContext}
+    - Price Assessment: ${stats.priceAssessment}
+    - Confidence Tier: ${stats.confidence} (${stats.dataSources.totalPoints} price points across ${stats.dataSources.historySpanDays} days; ${stats.dataSources.backfilledPoints} Keepa backfilled, ${stats.dataSources.selfCollectedPoints} self-collected)
+    - Deal Honesty: ${stats.dealHonesty.level} (Flags: ${stats.dealHonesty.flags.join('; ') || 'None'})
+    - Calculated Smart Buy Score: ${stats.smartBuyScore}/100
+    - Calculated Recommendation: ${stats.recommendation}
     
-    Based ONLY on the provided price history facts and budget, provide a structured shopping advice response.
+    Based ONLY on the provided price history facts and budget, provide structured shopping advice.
     DO NOT invent prices or historical data.
     
     Return JSON strictly matching this schema:
     {
       "recommendation": "${stats.recommendation}",
       "smartBuyScore": ${stats.smartBuyScore},
-      "explanation": "Brief advice overview...",
-      "priceAssessment": "Evaluation of current price vs history...",
-      "trendAssessment": "Evaluation of recent trend...",
-      "budgetAssessment": "Evaluation of affordability...",
-      "caution": "Any risks or reasons to wait...",
+      "explanation": "Concise summary explaining the decision based on historical price rank and deal honesty...",
+      "priceAssessment": "Evaluation of current price rank...",
+      "trendAssessment": "Evaluation of price trend...",
+      "budgetAssessment": "Evaluation of budget fit...",
+      "caution": "${stats.caution.replace(/"/g, "'")}",
       "alternatives": []
     }
   `;
 
-  // Try calling Gemini with 1 retry on Zod validation or parse failure
   let attempts = 0;
   while (attempts < 2) {
     attempts++;
@@ -190,12 +179,19 @@ export const getAIAdvice = async (message, productId, userId) => {
           ...parsed.data,
           recommendation: stats.recommendation, // Deterministically enforced
           smartBuyScore: stats.smartBuyScore,   // Deterministically enforced
+          confidence: stats.confidence,
+          insufficientHistory: stats.insufficientHistory,
+          percentiles: stats.percentiles,
+          dealHonesty: stats.dealHonesty,
+          breakdown: stats.breakdown,
+          dataSources: stats.dataSources,
           factors: stats.factors,
           currentPrice,
-          historicalAverage: stats.historicalAverage
+          historicalAverage: stats.historicalAverage,
+          caution: stats.caution
         };
       } else {
-        logger.warn({ attempt: attempts, errors: parsed.error.issues }, 'Gemini advice failed Zod schema validation; retrying');
+        logger.warn({ attempt: attempts, errors: parsed.error.issues }, 'Gemini advice failed Zod validation; retrying');
       }
     } catch (err) {
       logger.warn({ attempt: attempts, error: err.message }, 'Gemini advice call failed; retrying if attempts left');
@@ -243,4 +239,10 @@ export const explainBetterConfiguration = async (selectedProduct, alternativePro
   }
 
   return "Recommended due to a higher value score considering price and specifications.";
+};
+
+export default {
+  calculatePriceStatistics,
+  getAIAdvice,
+  explainBetterConfiguration
 };
