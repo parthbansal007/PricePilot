@@ -43,16 +43,21 @@ export default class SerperDiscoveryAdapter extends DiscoveryProvider {
     }
 
     const data = await response.json();
-    const rawResults = data.shopping || [];
+    return this.normalizeResults(data, query);
+  }
+
+  normalizeResults(data, query = '') {
+    const rawResults = Array.isArray(data) ? data : (data?.shopping || []);
 
     const normalized = [];
     for (const item of rawResults) {
       const source = item.source || 'Unknown Retailer';
-      if (!item.title || !isTrustedRetailer(source)) continue;
-      if (isAccessoryTitle(item.title) && !isAccessoryTitle(query)) continue;
+      if (!item.title) continue;
+      if (query && !isTrustedRetailer(source)) continue;
+      if (query && isAccessoryTitle(item.title) && !isAccessoryTitle(query)) continue;
 
-      const matchScore = calculateMatchScore(query, item.title);
-      if (matchScore < 35) continue;
+      const matchScore = query ? calculateMatchScore(query, item.title) : 100;
+      if (query && matchScore < 35) continue;
 
       const rawUrl = item.link || '';
       const directUrl = extractRetailerUrl(rawUrl);

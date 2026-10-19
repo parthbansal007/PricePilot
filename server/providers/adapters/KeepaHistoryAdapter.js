@@ -24,6 +24,10 @@ export default class KeepaHistoryAdapter extends HistoryProvider {
     return Boolean(this.apiKey);
   }
 
+  convertKeepaTimeToDate(keepaTime) {
+    return keepaTimeToDate(keepaTime);
+  }
+
   async getHistory(asin, options = {}) {
     if (!this.isAvailable()) {
       return [];

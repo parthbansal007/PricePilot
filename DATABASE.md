@@ -1,34 +1,21 @@
 # PricePilot Database Documentation
 
-Database: MongoDB Atlas
-ORM: Mongoose
+> **Note:** The full architectural specification with index definitions and caching strategies is maintained in [docs/DATABASE.md](file:///c:/Users/Parth/Documents/AI%20Shopping%20Assistant/docs/DATABASE.md).
 
-## Collections
+**Database:** MongoDB Atlas  
+**ODM:** Mongoose  
+**Distributed Caching:** Redis (`REDIS_URL`) or MongoDB TTL Collections (`cacheentries`) with In-Memory fallback
 
-### 1. Users (`users`)
-Stores user profiles synced from Firebase.
-Fields: `name`, `email`, `firebaseUid`, `profilePicture`, `preferredCurrency`, `monthlyBudget`
-
-### 2. Products (`products`)
-Caches external product data to avoid excessive API calls.
-Fields: `externalId`, `title`, `image`, `retailer`, `currentPrice`
-
-### 3. PriceHistories (`pricehistories`)
-Stores historical prices to build the price trend chart.
-Fields: `productId`, `price`, `currency`, `retailer`, `timestamp`
-
-### 4. TrackedProducts (`trackedproducts`)
-Stores user intent to track a product for price drops.
-Fields: `userId`, `productId`, `productName`, `targetPrice`, `active`
-
-### 5. Wishlists (`wishlists`)
-Stores user saved items.
-Fields: `userId`, `productId`, `productName`, `currentPrice`
-
-### 6. Budgets (`budgets`)
-Stores monthly limit and subdocument array of expenses.
-Fields: `userId`, `monthlyLimit`, `expenses`
-
-### 7. Notifications (`notifications`)
-Stores alerts for price drops and target matches.
-Fields: `userId`, `type` (PRICE_DROP, TARGET_PRICE), `title`, `message`, `read`
+## Core Collections Summary
+1. `users` - Firebase authenticated profiles, budget preferences & notification settings
+2. `canonicalproducts` - Brand & model normalized master catalog across Indian retailers
+3. `products` - Real-time discovered merchant items and enriched specs
+4. `pricehistories` - Historical price series combining crawler observations and Keepa 90-day backfill
+5. `trackedproducts` - User price drop targets and active alerts
+6. `priceprotections` - Post-purchase price drop claims and invoice records
+7. `wallets` - User saved payment methods (bank issuer & tier only, no card numbers)
+8. `offerrules` - Bank card instant discounts, cashback, and EMI rules
+9. `budgets` & `expenses` - Personal finance tracking and impulse expense tagging
+10. `notifications` - Multi-channel alert logs (In-App, Resend, Telegram, FCM)
+11. `cacheentries` - TTL-indexed document cache (TTL: 6–24 hours)
+12. `joblocks` - Distributed locks for horizontal cron execution safety

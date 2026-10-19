@@ -36,6 +36,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
 import decisionRoutes from './routes/decisionRoutes.js';
+import discoveryRouter from './services/discoveryRouter.js';
 import { seedOfferRules } from './seeds/seedOfferRules.js';
 
 const app = express();
@@ -88,10 +89,18 @@ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 // Serve static files from the React frontend build
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// Health check endpoint with integration and fallback transparency
+// Health check endpoint with integration, cache backend, quota usage, and fallback transparency
 let isDbConnected = false;
 app.get('/api/health', (req, res) => {
   const isHealthy = isDbConnected || env.NODE_ENV !== 'production';
+  const cacheBackend = env.REDIS_URL ? 'redis' : (mongoose.connection.readyState === 1 ? 'mongodb' : 'memory');
+
+  const quotaReport = discoveryRouter.getQuotaReport();
+  const trippedProviders = Object.entries(quotaReport)
+    .filter(([_, report]) => report.circuitBreaker === 'OPEN')
+    .map(([name]) => name);
+
+  const isFallbackActive = env.USE_MOCK_DATA === 'true' || env.ALLOW_DEV_AUTH_BYPASS === 'true' || trippedProviders.length > 0;
 
   res.status(isHealthy ? 200 : 503).json({
     status: isHealthy ? 'ok' : 'degraded',
@@ -101,22 +110,32 @@ app.get('/api/health', (req, res) => {
       connected: isDbConnected,
       status: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
     },
-    integrations: {
+    cacheBackend,
+    enabledIntegrations: {
       discovery: {
         serpapi: Boolean(env.SERPAPI_KEY || env.PRODUCT_SEARCH_API_KEY),
         serper: Boolean(env.SERPER_KEY),
         searchapi: Boolean(env.SEARCHAPI_KEY),
         dataforseo: Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD)
       },
-      aiAdvisor: Boolean(env.GEMINI_API_KEY),
+      keepaPriceHistory: Boolean(env.KEEPA_KEY),
+      openIcecatCatalog: Boolean(env.ICECAT_USER && env.ICECAT_API_TOKEN),
+      geminiAi: Boolean(env.GEMINI_API_KEY),
       firebaseAuth: Boolean(env.FIREBASE_PROJECT_ID && env.FIREBASE_CLIENT_EMAIL),
-      storage: env.STORAGE_PROVIDER,
-      redis: Boolean(env.REDIS_URL),
-      sentry: Boolean(env.SENTRY_DSN)
+      emailAlerts: Boolean(env.RESEND_API_KEY),
+      telegramAlerts: Boolean(env.TELEGRAM_BOT_TOKEN),
+      smsAlerts: env.ENABLE_SMS_ALERTS === 'true',
+      whatsappAlerts: env.ENABLE_WHATSAPP_ALERTS === 'true',
+      affiliateRouting: env.AFFILIATE_ENABLED === 'true',
+      storageProvider: env.STORAGE_PROVIDER,
+      observability: Boolean(env.SENTRY_DSN)
     },
-    fallbackMode: {
+    quotaUsage: quotaReport,
+    activeFallbackMode: {
+      active: isFallbackActive,
       useMockData: env.USE_MOCK_DATA === 'true',
-      allowDevAuthBypass: env.ALLOW_DEV_AUTH_BYPASS === 'true'
+      allowDevAuthBypass: env.ALLOW_DEV_AUTH_BYPASS === 'true',
+      trippedProviders
     }
   });
 });

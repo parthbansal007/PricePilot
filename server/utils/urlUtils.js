@@ -20,6 +20,34 @@ export const extractRetailerUrl = (rawUrl) => {
   }
 };
 
+export const stripTrackingParams = (url) => {
+  if (!url) return url;
+  try {
+    const urlObj = new URL(url);
+    const trackingParams = new Set([
+      'gclid', 'gclsrc', 'fbclid', 'msclkid', 'dclid',
+      'tag', 'ascsubtag', 'ref', 'affid', 'aff_id', 'aff_sub', 'aff_sub2'
+    ]);
+    const keysToDelete = [];
+    for (const key of urlObj.searchParams.keys()) {
+      if (key.startsWith('utm_') || trackingParams.has(key.toLowerCase())) {
+        keysToDelete.push(key);
+      }
+    }
+    for (const key of keysToDelete) {
+      urlObj.searchParams.delete(key);
+    }
+    return urlObj.toString();
+  } catch {
+    return url;
+  }
+};
+
+export const unwrapDirectUrl = (rawUrl) => {
+  const unwrapped = extractRetailerUrl(rawUrl);
+  return stripTrackingParams(unwrapped);
+};
+
 export const isDirectRetailerUrl = (url) => {
   if (!url) return false;
   try {
@@ -34,3 +62,4 @@ export const isDirectRetailerUrl = (url) => {
     return false;
   }
 };
+

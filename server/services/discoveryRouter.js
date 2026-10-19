@@ -145,6 +145,20 @@ export class DiscoveryRouter {
     this.monthlyUsage.set(providerName, current + 1);
   }
 
+  getQuotaReport() {
+    this.checkMonthReset();
+    const report = {};
+    for (const [name, breaker] of this.breakers.entries()) {
+      report[name] = {
+        monthlyCalls: this.monthlyUsage.get(name) || 0,
+        monthlyLimit: this.monthlyQuotas.get(name) || null,
+        circuitBreaker: breaker.state,
+        costPerQueryUsd: PROVIDER_COSTS[name] || 0
+      };
+    }
+    return report;
+  }
+
   /**
    * Search across discovery providers with fallback and request coalescing
    * @param {string} query

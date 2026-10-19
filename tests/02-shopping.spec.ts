@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const APP_URL = 'https://pricepilot-zr6n.onrender.com/';
+const APP_URL = process.env.APP_URL || process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://pricepilot-zr6n.onrender.com/';
 const TEST_EMAIL = 'abc123@example.com';
 const TEST_PASSWORD = 'Abc12345$';
 

@@ -1,44 +1,57 @@
 # PricePilot API Documentation
 
+> **Note:** The complete, in-depth API reference documentation with payload schemas and query options is maintained at [docs/API.md](file:///c:/Users/Parth/Documents/AI%20Shopping%20Assistant/docs/API.md).
+
 ## Authentication
-Firebase ID Token required in Authorization header for all endpoints.
-`Authorization: Bearer <token>`
+Firebase ID Token required in `Authorization: Bearer <token>` header for all authenticated routes.
 
-## Auth
-- `POST /api/auth/sync` - Sync Firebase user to MongoDB
+## Summary of Core Endpoints
 
-## Products
-- `GET /api/products/search?q=query` - Search for products
-- `GET /api/products/:id` - Get product details
-- `GET /api/products/compare?q=query` - Compare prices across retailers
-- `GET /api/products/:id/history` - Get price history for a product
+### System & Health
+- `GET /api/health` - Server health, cache backend, quota usage, and active integrations
+- `POST /api/cron/check-prices` - Scheduled background price checker (secured by `CRON_SECRET`)
 
-## Tracking
-- `POST /api/tracking` - Start tracking a product (body: productId, productName, targetPrice)
-- `GET /api/tracking` - Get user's tracked products
-- `DELETE /api/tracking/:id` - Stop tracking
+### Products & Comparison
+- `GET /api/products/search?q=&category=&provider=` - Universal multi-provider product discovery
+- `GET /api/products/compare?q=` - Cross-retailer price comparison
+- `GET /api/products/:id` - Product details & Smart Buy Score V2
+- `GET /api/products/:id/history` - Historical price points & Keepa backfill
+- `GET /api/products/:id/reviews` - Synthesized review intelligence & fake review detection
+- `GET /api/products/:id/configurations` - Refurbished and same-price better-spec alternatives
 
-## Wishlist
-- `POST /api/wishlist` - Add to wishlist
-- `GET /api/wishlist` - View wishlist
-- `DELETE /api/wishlist/:id` - Remove from wishlist
+### Personal Buy Decision Engine
+- `POST /api/decision` - Net effective price, card discounts, EMI breakdown, affordability check & wait forecast
 
-## Budget
-- `GET /api/budget` - Get budget and expenses
-- `PUT /api/budget` - Update monthly limit (body: monthlyLimit)
-- `POST /api/budget/expenses` - Add expense (body: amount, category, description)
-- `DELETE /api/budget/expenses/:id` - Remove expense
+### Wallet & Cards
+- `GET /api/wallet` - List user saved cards
+- `POST /api/wallet` - Add card (issuer & tier only, zero card numbers)
+- `DELETE /api/wallet/:id` - Remove card
+- `POST /api/wallet/scan-statement` - Extract card benefits via Gemini Vision
 
-## Notifications
-- `GET /api/notifications` - Get all notifications
-- `PATCH /api/notifications/read-all` - Mark all as read
-- `PATCH /api/notifications/:id/read` - Mark single as read
+### AI Conversational Advisor
+- `POST /api/advisor` - Multi-turn conversational shopping assistant with Gemini 2.5 Flash
+- `POST /api/advisor/execute-action` - Execute confirmed agent write action
 
-## AI Advisor
-- `POST /api/advisor` - Get Smart Buy Score and AI advice (body: message, productId)
+### Tracking & Price Protection
+- `GET /api/tracking` - View tracked products
+- `POST /api/tracking` - Track product target price
+- `DELETE /api/tracking/:id` - Untrack product
+- `POST /api/tracking/price-protection` - Register purchase for post-purchase price drop protection
+- `POST /api/tracking/scan-invoice` - Parse receipt/invoice with Gemini Vision
 
-## Profile & Dashboard
-- `GET /api/profile` - Get user profile
-- `PUT /api/profile` - Update profile
-- `POST /api/profile/picture` - Upload profile picture (FormData)
-- `GET /api/dashboard` - Get dashboard metrics
+### Budget & Expenses
+- `GET /api/budget` - Monthly limit and expenses breakdown
+- `PUT /api/budget` - Set monthly budget limit
+- `POST /api/budget/expenses` - Record expense
+- `DELETE /api/budget/expenses/:id` - Delete expense
+
+### Notifications & Alerts
+- `GET /api/notifications` - In-app notification center
+- `PATCH /api/notifications/read-all` - Mark all notifications read
+- `POST /api/notifications/test-channel` - Dispatch test alert (Resend, Telegram, FCM)
+
+### Profile & Dashboard
+- `GET /api/profile` - User profile
+- `PUT /api/profile` - Update profile preferences
+- `POST /api/profile/picture` - Upload avatar image
+- `GET /api/dashboard` - Dashboard metrics & savings analytics
