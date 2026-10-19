@@ -34,6 +34,9 @@ import budgetRoutes from './routes/budgetRoutes.js';
 import advisorRoutes from './routes/advisorRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
+import walletRoutes from './routes/walletRoutes.js';
+import decisionRoutes from './routes/decisionRoutes.js';
+import { seedOfferRules } from './seeds/seedOfferRules.js';
 
 const app = express();
 const PORT = env.PORT || 5000;
@@ -128,6 +131,8 @@ app.use('/api/budget', budgetRoutes);
 app.use('/api/advisor', advisorRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/decision', decisionRoutes);
 
 // Catch-all route to serve React app for non-API requests (client-side routing)
 app.use((req, res, next) => {
@@ -152,6 +157,7 @@ const connectDB = async () => {
     const conn = await mongoose.connect(env.MONGODB_URI, { family: 4 });
     isDbConnected = true;
     logger.info({ host: conn.connection.host }, 'MongoDB Connected successfully');
+    seedOfferRules().catch(err => logger.debug({ error: err.message }, 'Offer rules seed skipped'));
   } catch (error) {
     logger.error({ error: error.message }, 'MongoDB connection error');
     if (env.NODE_ENV === 'production') {

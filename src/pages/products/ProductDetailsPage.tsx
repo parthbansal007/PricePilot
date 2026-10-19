@@ -5,9 +5,7 @@ import { wishlistService } from '../../services/wishlistService';
 import { trackingService } from '../../services/trackingService';
 import { 
   Star, 
-  MapPin, 
   TrendingDown, 
-  TrendingUp, 
   Heart, 
   Bell, 
   ArrowLeft,
@@ -29,6 +27,7 @@ import {
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { BetterConfigurations } from '../../components/products/BetterConfigurations';
+import { PersonalDecisionPanel } from '../../components/products/PersonalDecisionPanel';
 
 export function ProductDetailsPage() {
   const { id } = useParams();
@@ -267,6 +266,9 @@ export function ProductDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Personal Buy Decision Engine */}
+      <PersonalDecisionPanel productId={id!} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Available Stores */}
