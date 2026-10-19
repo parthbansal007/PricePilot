@@ -1,7 +1,7 @@
 import express from 'express';
 import { getWallet, updateWallet } from '../controllers/walletController.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { apiLimiter } from '../middleware/rateLimiter.js';
+import { standardRateLimiter } from '../middleware/rateLimiter.js';
 import { validateRequest } from '../middleware/validateRequest.js';
 import { z } from 'zod';
 
@@ -33,7 +33,7 @@ const updateWalletSchema = {
   })
 };
 
-router.use(apiLimiter);
+router.use(standardRateLimiter);
 router.use(protect);
 
 router.route('/')

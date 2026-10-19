@@ -10,6 +10,9 @@ export const standardRateLimiter = rateLimit({
   }
 });
 
+export const apiLimiter = standardRateLimiter;
+
+
 export const strictSearchAdvisorLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 30, // Limit search/advisor/decision requests to 30 per minute
