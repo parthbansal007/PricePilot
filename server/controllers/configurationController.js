@@ -6,7 +6,7 @@ import * as configurationService from '../services/configurationService.js';
 export const getBetterConfigurations = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.uid;
+    const userId = req.user?.uid;
 
     const data = await configurationService.getBetterConfigurations(id, userId);
     res.json(data);

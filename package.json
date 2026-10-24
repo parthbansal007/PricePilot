@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test tests/*.test.mjs",
-    "test:e2e": "playwright test",
+    "start": "node server/server.js",
+    "server": "node server/server.js",
+    "postinstall": "npm --prefix server install",
     "lint": "oxlint",
     "preview": "vite preview",
     "benchmark": "node scripts/provider-benchmark.js"

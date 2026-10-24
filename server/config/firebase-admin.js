@@ -22,18 +22,10 @@ try {
     adminAuth = getAuth(app);
     logger.info('Firebase Admin initialized successfully with service credentials');
   } else {
-    if (isProduction) {
-      logger.fatal('Missing Firebase Admin credentials in production.');
-      throw new Error('Missing Firebase Admin credentials in production (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)');
-    } else {
-      logger.warn('Firebase Admin credentials not configured. Auth verification will fail unless ALLOW_DEV_AUTH_BYPASS=true in development.');
-    }
+    logger.warn('Firebase Admin credentials not configured. Auth verification will be disabled until credentials are provided.');
   }
 } catch (error) {
   logger.error({ error: error.message }, 'Firebase Admin initialization error');
-  if (process.env.NODE_ENV === 'production') {
-    throw error;
-  }
 }
 
 export { adminAuth };

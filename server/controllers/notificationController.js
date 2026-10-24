@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Notification from '../models/Notification.js';
 
 // @desc    Get user notifications
@@ -22,10 +23,14 @@ export const markAsRead = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.uid;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
     const notification = await Notification.findOneAndUpdate(
       { _id: id, userId },
       { read: true },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!notification) {

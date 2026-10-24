@@ -194,7 +194,7 @@ export function PersonalDecisionPanel({ productId }: PersonalDecisionPanelProps)
           </h3>
 
           <div className="space-y-2.5">
-            {sellers.map((seller, idx) => (
+            {(sellers || []).map((seller, idx) => (
               <div 
                 key={idx} 
                 className={`p-4 rounded-xl border transition-all ${

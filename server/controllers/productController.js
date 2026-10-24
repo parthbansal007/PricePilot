@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import PriceHistory from '../models/PriceHistory.js';
 import * as productService from '../services/productService.js';
 
@@ -28,6 +29,9 @@ export const getProductDetails = async (req, res) => {
     const { id } = req.params;
     
     const details = await productService.getProductDetails(id);
+    if (!details) {
+      return res.status(404).json({ message: 'Product not found.' });
+    }
     res.json(details);
   } catch (error) {
     console.error('Product details error:', error.message);
@@ -61,9 +65,11 @@ export const getProductHistory = async (req, res) => {
     const { id } = req.params;
     
     // Attempt to get history from DB matching either productId or canonicalProductId
-    const history = await PriceHistory.find({
-      $or: [{ productId: id }, { canonicalProductId: id }]
-    }).sort({ timestamp: 1 }).lean();
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const query = isObjectId 
+      ? { $or: [{ productId: id }, { canonicalProductId: id }] }
+      : { canonicalProductId: id };
+    const history = await PriceHistory.find(query).sort({ timestamp: 1 }).lean();
     
     if (history.length === 0) {
       return res.json({
@@ -141,8 +147,12 @@ export const submitExtensionPrice = async (req, res) => {
 
     // Outlier check: Find existing price points
     const PriceHistory = (await import('../models/PriceHistory.js')).default;
+    const isObjectId = mongoose.Types.ObjectId.isValid(url);
+    const query = isObjectId 
+      ? [{ productId: url }, { retailer: retailer || 'Amazon.in' }]
+      : [{ retailer: retailer || 'Amazon.in' }];
     const recent = await PriceHistory.find({
-      $or: [{ productId: url }, { retailer: retailer || 'Amazon.in' }]
+      $or: query
     }).sort({ timestamp: -1 }).limit(10).lean();
 
     if (recent.length >= 3) {
@@ -158,15 +168,18 @@ export const submitExtensionPrice = async (req, res) => {
     }
 
     // Record verified submission
-    await PriceHistory.create({
-      productId: url,
+    const historyData = {
       retailer: retailer || 'Online Store',
       price: numPrice,
       currency: 'INR',
       source: 'extension',
       sourceType: 'extension',
       timestamp: new Date()
-    });
+    };
+    if (isObjectId) {
+      historyData.productId = url;
+    }
+    await PriceHistory.create(historyData);
 
     res.status(201).json({
       message: 'Extension price point recorded successfully with source extension.',

@@ -60,7 +60,7 @@ export default class SerperDiscoveryAdapter extends DiscoveryProvider {
       if (query && matchScore < 35) continue;
 
       const rawUrl = item.link || '';
-      const directUrl = extractRetailerUrl(rawUrl);
+      const directUrl = extractRetailerUrl(rawUrl, source, item.title);
       const isDirect = isDirectRetailerUrl(directUrl);
       const price = extractPrice(item.price);
       const info = extractProductInfo(item.title);

@@ -286,13 +286,13 @@ export function ProductDetailsPage() {
               product.offers.map((offer, idx) => (
                 <div key={idx} className={`p-4 rounded-lg border ${idx === 0 ? 'border-primary bg-primary/5' : 'border-borderLight bg-secondaryBg'} flex items-center justify-between`}>
                   <div>
-                    <h4 className="font-bold text-textPrimary">{offer.store}</h4>
+                    <h4 className="font-bold text-textPrimary">{offer.store || offer.retailer}</h4>
                     <p className="text-xs text-textSecondary">{offer.availability}</p>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-textPrimary mb-1">₹{offer.price.toLocaleString()}</div>
                     <a href={offer.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary hover:underline flex items-center justify-end gap-1">
-                      {offer.isDirectRetailerUrl ? `Buy on ${offer.store}` : 'View Offer'} <ExternalLink className="w-3 h-3" />
+                      {offer.isDirectRetailerUrl ? `Buy on ${offer.store || offer.retailer}` : 'View Offer'} <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 </div>

@@ -5,8 +5,11 @@ export const trackingService = {
     const response = await api.get('/tracking');
     return response.data;
   },
-  addTracking: async (data: any) => {
-    const response = await api.post('/tracking', data);
+  addTracking: async (dataOrId: any, targetPrice?: number, productName?: string) => {
+    const payload = typeof dataOrId === 'object' && dataOrId !== null
+      ? dataOrId
+      : { productId: dataOrId, targetPrice, productName: productName || 'Tracked Product' };
+    const response = await api.post('/tracking', payload);
     return response.data;
   },
   removeTracking: async (id: string) => {

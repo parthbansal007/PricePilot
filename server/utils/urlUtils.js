@@ -1,22 +1,18 @@
-export const extractRetailerUrl = (rawUrl) => {
-  if (!rawUrl) return null;
+const isGoogleHost = (hostname) => {
+  if (!hostname) return false;
+  return /(^|\.)google\.[a-z.]+$/i.test(hostname) || hostname.includes('google.');
+};
 
+export const isDirectRetailerUrl = (url) => {
+  if (!url) return false;
   try {
-    const urlObj = new URL(rawUrl);
-    
-    // If it's a google redirect URL
-    if (urlObj.hostname.includes('google.com') && urlObj.pathname.includes('/url')) {
-      const actualUrl = urlObj.searchParams.get('url') || urlObj.searchParams.get('q');
-      if (actualUrl) {
-        return actualUrl;
-      }
+    const urlObj = new URL(url);
+    if (isGoogleHost(urlObj.hostname)) {
+      return false;
     }
-    
-    // Return original if it's already a direct link or couldn't be parsed
-    return rawUrl;
+    return true;
   } catch (error) {
-    // Fallback for invalid URLs
-    return rawUrl;
+    return false;
   }
 };
 
@@ -26,7 +22,8 @@ export const stripTrackingParams = (url) => {
     const urlObj = new URL(url);
     const trackingParams = new Set([
       'gclid', 'gclsrc', 'fbclid', 'msclkid', 'dclid',
-      'tag', 'ascsubtag', 'ref', 'affid', 'aff_id', 'aff_sub', 'aff_sub2'
+      'tag', 'ascsubtag', 'ref', 'affid', 'aff_id', 'aff_sub', 'aff_sub2',
+      'srsltid'
     ]);
     const keysToDelete = [];
     for (const key of urlObj.searchParams.keys()) {
@@ -43,23 +40,114 @@ export const stripTrackingParams = (url) => {
   }
 };
 
-export const unwrapDirectUrl = (rawUrl) => {
-  const unwrapped = extractRetailerUrl(rawUrl);
-  return stripTrackingParams(unwrapped);
+export const getDirectMerchantUrl = (retailer, title, fallbackUrl = '') => {
+  const cleanTitle = (title || '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/\[.*?\]/g, '')
+    .replace(/[^\w\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleanTitle && !fallbackUrl) return '';
+  const queryStr = cleanTitle || title || '';
+  const encodedQuery = encodeURIComponent(queryStr);
+  const r = (retailer || '').toLowerCase();
+
+  if (r.includes('amazon')) {
+    return `https://www.amazon.in/s?k=${encodedQuery}`;
+  }
+  if (r.includes('flipkart') || r.includes('flipshope')) {
+    return `https://www.flipkart.com/search?q=${encodedQuery}`;
+  }
+  if (r.includes('croma')) {
+    return `https://www.croma.com/searchB?q=${encodedQuery}`;
+  }
+  if (r.includes('reliance')) {
+    return `https://www.reliancedigital.in/search?q=${encodedQuery}`;
+  }
+  if (r.includes('vijay')) {
+    return `https://www.vijaysales.com/search/${encodedQuery}`;
+  }
+  if (r.includes('tata') || r.includes('cliq')) {
+    return `https://www.tatacliq.com/search/?searchCategory=all&text=${encodedQuery}`;
+  }
+  if (r.includes('jiomart')) {
+    return `https://www.jiomart.com/search/${encodedQuery}`;
+  }
+  if (r.includes('samsung')) {
+    return `https://www.samsung.com/in/search/?searchvalue=${encodedQuery}`;
+  }
+  if (r.includes('apple')) {
+    return `https://www.apple.com/in/search/${encodedQuery}`;
+  }
+  if (r.includes('poorvika')) {
+    return `https://www.poorvika.com/s?q=${encodedQuery}`;
+  }
+  if (r.includes('sangeetha')) {
+    return `https://www.sangeethamobiles.com/search?q=${encodedQuery}`;
+  }
+  if (r.includes('zepto')) {
+    return `https://www.zeptonow.com/search?q=${encodedQuery}`;
+  }
+  if (r.includes('blinkit')) {
+    return `https://blinkit.com/s/?q=${encodedQuery}`;
+  }
+  if (r.includes('bigbasket')) {
+    return `https://www.bigbasket.com/ps/?q=${encodedQuery}`;
+  }
+  if (r.includes('triveni')) {
+    return `https://www.triveniworld.com/search?q=${encodedQuery}`;
+  }
+  if (r.includes('lotus')) {
+    return `https://www.lotuselectronics.com/search?q=${encodedQuery}`;
+  }
+
+  // If fallbackUrl is a valid direct non-google URL, return it
+  if (fallbackUrl && isDirectRetailerUrl(fallbackUrl)) {
+    return stripTrackingParams(fallbackUrl);
+  }
+
+  // Fallback to Flipkart search for the product query if non-google fallback is unavailable
+  return `https://www.flipkart.com/search?q=${encodedQuery}`;
 };
 
-export const isDirectRetailerUrl = (url) => {
-  if (!url) return false;
+export const extractRetailerUrl = (rawUrl, retailer = null, title = null) => {
+  if (!rawUrl) {
+    return getDirectMerchantUrl(retailer, title, '');
+  }
+
   try {
-    const urlObj = new URL(url);
-    // If it's still pointing to google shopping, it's not direct
-    if (urlObj.hostname.includes('google.com') && 
-        (urlObj.pathname.includes('/shopping') || urlObj.pathname.includes('/search') || urlObj.pathname.includes('/product'))) {
-      return false;
+    const urlObj = new URL(rawUrl);
+
+    // If it's a google redirect URL (/url?url=... or /url?q=...)
+    if (isGoogleHost(urlObj.hostname) && urlObj.pathname.includes('/url')) {
+      const actualUrl = urlObj.searchParams.get('url') || urlObj.searchParams.get('q');
+      if (actualUrl && isDirectRetailerUrl(actualUrl)) {
+        return stripTrackingParams(actualUrl);
+      }
     }
-    return true;
-  } catch (error) {
-    return false;
+
+    // If it's ANY google link (ibp=oshop, /search, /shopping, /product, etc.)
+    if (isGoogleHost(urlObj.hostname)) {
+      const queryFromUrl = urlObj.searchParams.get('q') || '';
+      const effectiveTitle = title || queryFromUrl;
+      return getDirectMerchantUrl(retailer, effectiveTitle, '');
+    }
+
+    return stripTrackingParams(rawUrl);
+  } catch {
+    return getDirectMerchantUrl(retailer, title, rawUrl);
   }
 };
 
+export const unwrapDirectUrl = (rawUrl, retailer = null, title = null) => {
+  return extractRetailerUrl(rawUrl, retailer, title);
+};
+
+export default {
+  isDirectRetailerUrl,
+  stripTrackingParams,
+  getDirectMerchantUrl,
+  extractRetailerUrl,
+  unwrapDirectUrl
+};

@@ -1,25 +1,35 @@
 import React from 'react';
-import { Menu, Search, Bell } from 'lucide-react';
+import { Menu, Bell, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export function Header({ setMobileOpen }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-borderLight shadow-sm h-16 flex items-center justify-between px-4 md:px-8">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <button
           className="md:hidden p-2 text-textSecondary hover:bg-secondaryBg rounded-lg"
           onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation menu"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-
+        {/* Mobile Brand Name */}
+        <span className="md:hidden font-bold text-lg text-textPrimary tracking-tight">
+          PricePilot<span className="text-primary">AI</span>
+        </span>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         <Link to="/notifications" className="relative p-2 text-textSecondary hover:bg-secondaryBg rounded-full transition-colors">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full border-2 border-white"></span>
@@ -37,6 +47,16 @@ export function Header({ setMobileOpen }) {
             {user?.name || 'User'}
           </span>
         </Link>
+
+        {/* Mobile Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="md:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 transition-colors"
+          aria-label="Logout"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Logout</span>
+        </button>
       </div>
     </header>
   );

@@ -21,6 +21,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    if (setMobileOpen) setMobileOpen(false);
     logout();
     navigate('/login');
   };
@@ -50,8 +51,9 @@ export function Sidebar({ mobileOpen, setMobileOpen }) {
         
         {/* Mobile close button */}
         <button 
-          className="ml-auto md:hidden text-textSecondary"
+          className="ml-auto md:hidden text-textSecondary hover:text-textPrimary p-1 rounded-md"
           onClick={() => setMobileOpen(false)}
+          aria-label="Close navigation menu"
         >
           <X className="w-5 h-5" />
         </button>
@@ -62,6 +64,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }) {
           <NavLink
             key={item.name}
             to={item.path}
+            onClick={() => setMobileOpen && setMobileOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
@@ -82,6 +85,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }) {
             <NavLink
               key={item.name}
               to={item.path}
+              onClick={() => setMobileOpen && setMobileOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive

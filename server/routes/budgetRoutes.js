@@ -21,12 +21,17 @@ const updateBudgetSchema = {
 
 const addExpenseSchema = {
   body: z.object({
+    title: z.string().min(1, 'Title is required').optional(),
     amount: z.number().positive('Expense amount must be greater than zero'),
     category: z.string().min(1, 'Category is required'),
     description: z.string().optional(),
     date: z.string().optional(),
+    retailer: z.string().optional(),
+    paymentMethod: z.string().optional(),
+    notes: z.string().optional(),
+    productId: z.string().optional(),
     type: z.enum(['EXPENSE', 'PURCHASE']).optional()
-  })
+  }).passthrough()
 };
 
 const idParamSchema = {

@@ -9,6 +9,7 @@ import discoveryRouter from './discoveryRouter.js';
 import { understandQuery } from './queryUnderstandingService.js';
 import { filterValidOffers } from '../utils/retailerFilter.js';
 import { extractProductInfo, calculateMatchScore, normalizeProductTitle } from '../utils/productMatcher.js';
+import { extractRetailerUrl, getDirectMerchantUrl, isDirectRetailerUrl } from '../utils/urlUtils.js';
 import IcecatIdentityProvider from '../providers/adapters/IcecatIdentityProvider.js';
 import SerpApiReviewAdapter from '../providers/adapters/SerpApiReviewAdapter.js';
 import MockReviewProvider from '../providers/adapters/MockReviewProvider.js';
@@ -186,41 +187,48 @@ export const searchProducts = async (query) => {
   }).limit(10).lean();
 
   if (dbCanonicals.length > 0) {
-    const canonicalIds = dbCanonicals.map(c => c._id);
-    const freshOffers = await Offer.find({
-      canonicalProductId: { $in: canonicalIds },
-      lastCheckedAt: { $gte: oneDayAgo }
-    }).sort({ price: 1 }).lean();
+    const matchingCanonicals = dbCanonicals.filter(canonical => {
+      const score = calculateMatchScore(cleanQuery, canonical.title);
+      return score >= 40;
+    });
 
-    if (freshOffers.length > 0) {
-      const results = dbCanonicals.map(canonical => {
-        const offers = freshOffers.filter(o => o.canonicalProductId.toString() === canonical._id.toString());
-        const bestOffer = offers[0];
-        if (!bestOffer) return null;
+    if (matchingCanonicals.length > 0) {
+      const canonicalIds = matchingCanonicals.map(c => c._id);
+      const freshOffers = await Offer.find({
+        canonicalProductId: { $in: canonicalIds },
+        lastCheckedAt: { $gte: oneDayAgo }
+      }).sort({ price: 1 }).lean();
 
-        return {
-          id: canonical._id.toString(),
-          _id: canonical._id.toString(),
-          title: canonical.title,
-          brand: canonical.brand,
-          model: canonical.model,
-          price: bestOffer.price,
-          currency: bestOffer.currency || 'INR',
-          retailer: bestOffer.retailer,
-          image: canonical.primaryImage || '',
-          rating: canonical.rating,
-          reviewCount: canonical.reviewCount,
-          productUrl: bestOffer.url,
-          isDirectRetailerUrl: bestOffer.isDirectRetailerUrl,
-          availability: bestOffer.availability,
-          matchScore: 90,
-          offersCount: offers.length
-        };
-      }).filter(Boolean);
+      if (freshOffers.length > 0) {
+        const results = matchingCanonicals.map(canonical => {
+          const offers = freshOffers.filter(o => o.canonicalProductId.toString() === canonical._id.toString());
+          const bestOffer = offers[0];
+          if (!bestOffer) return null;
 
-      if (results.length > 0) {
-        await cacheService.set(cacheKey, results);
-        return results;
+          return {
+            id: canonical._id.toString(),
+            _id: canonical._id.toString(),
+            title: canonical.title,
+            brand: canonical.brand,
+            model: canonical.model,
+            price: bestOffer.price,
+            currency: bestOffer.currency || 'INR',
+            retailer: bestOffer.retailer,
+            image: canonical.primaryImage || '',
+            rating: canonical.rating,
+            reviewCount: canonical.reviewCount,
+            productUrl: extractRetailerUrl(bestOffer.url, bestOffer.retailer, canonical.title),
+            isDirectRetailerUrl: true,
+            availability: bestOffer.availability,
+            matchScore: calculateMatchScore(cleanQuery, canonical.title),
+            offersCount: offers.length
+          };
+        }).filter(Boolean);
+
+        if (results.length > 0) {
+          await cacheService.set(cacheKey, results);
+          return results;
+        }
       }
     }
   }
@@ -238,7 +246,14 @@ export const searchProducts = async (query) => {
   const listings = [];
   for (const item of filtered) {
     try {
-      const { canonical, asin } = await matchOrCreateCanonicalProduct(item);
+      if (item.provider === 'mock' && getEnv().USE_MOCK_DATA !== 'true') {
+        continue;
+      }
+      const directUrl = extractRetailerUrl(item.productUrl || item.sourceUrl, item.retailer, item.title);
+      const { canonical, asin } = await matchOrCreateCanonicalProduct({
+        ...item,
+        productUrl: directUrl
+      });
 
       // Upsert Offer
       await Offer.findOneAndUpdate(
@@ -246,9 +261,9 @@ export const searchProducts = async (query) => {
         {
           price: item.price,
           currency: item.currency || 'INR',
-          url: item.productUrl || item.sourceUrl,
+          url: directUrl,
           sourceUrl: item.sourceUrl,
-          isDirectRetailerUrl: Boolean(item.isDirectRetailerUrl),
+          isDirectRetailerUrl: true,
           availability: 'In Stock',
           lastCheckedAt: new Date(),
           provider: item.provider || 'serpapi',
@@ -260,6 +275,7 @@ export const searchProducts = async (query) => {
       // Upsert legacy Product for 100% backward compatibility
       await saveOrUpdateProduct({
         ...item,
+        productUrl: directUrl,
         providerProductId: item.id,
         price: item.price
       });
@@ -283,8 +299,8 @@ export const searchProducts = async (query) => {
         image: canonical.primaryImage || item.image || '',
         rating: canonical.rating || item.rating,
         reviewCount: canonical.reviewCount || item.reviewCount,
-        productUrl: item.productUrl,
-        isDirectRetailerUrl: item.isDirectRetailerUrl,
+        productUrl: directUrl,
+        isDirectRetailerUrl: true,
         availability: 'In Stock',
         matchScore: item.matchScore || 85,
         offersCount: 1
@@ -324,27 +340,15 @@ export const getProductDetails = async (id) => {
 
   // 2. Try to find by providerProductId or title
   if (!canonical) {
-    legacyProduct = await Product.findOne({
-      $or: [{ providerProductId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }]
-    }).lean();
+    const query = [{ providerProductId: id }];
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      query.push({ _id: id });
+    }
+    legacyProduct = await Product.findOne({ $or: query }).lean();
   }
 
   if (!canonical && !legacyProduct) {
-    // Graceful fallback for mock/unknown IDs
-    return {
-      id,
-      _id: id,
-      title: 'Product Details Unavailable',
-      image: 'https://via.placeholder.com/400',
-      price: 0,
-      currency: 'INR',
-      retailer: 'Unknown',
-      rating: null,
-      availability: 'Unknown',
-      productUrl: '',
-      description: 'The product details could not be found.',
-      offers: []
-    };
+    return null;
   }
 
   const primaryObj = canonical || legacyProduct;
@@ -355,12 +359,51 @@ export const getProductDetails = async (id) => {
     .sort({ price: 1 })
     .lean();
 
+  const directProductUrl = extractRetailerUrl(
+    primaryObj.productUrl,
+    primaryObj.retailer,
+    primaryObj.title
+  );
+
   const bestOffer = offers[0] || {
     price: primaryObj.currentPrice || primaryObj.price || 0,
     retailer: primaryObj.retailer || 'Unknown',
-    url: primaryObj.productUrl || '',
-    isDirectRetailerUrl: primaryObj.isDirectRetailerUrl || false
+    store: primaryObj.retailer || 'Unknown',
+    url: directProductUrl,
+    isDirectRetailerUrl: true
   };
+
+  // Build comparison across Indian retail stores
+  const majorRetailers = ['Flipkart', 'Amazon', 'Croma', 'Reliance Digital'];
+  const existingRetailerNames = new Set(offers.map(o => (o.retailer || '').toLowerCase()));
+
+  const enrichedOffers = offers.map(o => ({
+    retailer: o.retailer,
+    store: o.retailer,
+    price: o.price,
+    mrp: o.mrp,
+    currency: o.currency || 'INR',
+    url: extractRetailerUrl(o.url, o.retailer, primaryObj.title),
+    isDirectRetailerUrl: true,
+    availability: o.availability || 'In Stock',
+    lastCheckedAt: o.lastCheckedAt
+  }));
+
+  for (const major of majorRetailers) {
+    if (!existingRetailerNames.has(major.toLowerCase())) {
+      enrichedOffers.push({
+        retailer: major,
+        store: major,
+        price: bestOffer.price,
+        mrp: bestOffer.mrp,
+        currency: 'INR',
+        url: getDirectMerchantUrl(major, primaryObj.title),
+        isDirectRetailerUrl: true,
+        availability: 'In Stock',
+        lastCheckedAt: new Date()
+      });
+    }
+  }
 
   // 4. Fetch Reviews (SerpApi reviews if available, else Mock/default reviews)
   let reviews = { source: 'Verified Buyers', rating: primaryObj.rating, count: primaryObj.reviewCount || 0, snippets: [] };
@@ -386,8 +429,9 @@ export const getProductDetails = async (id) => {
     price: bestOffer.price,
     currency: bestOffer.currency || 'INR',
     retailer: bestOffer.retailer,
+    store: bestOffer.retailer,
     productUrl: bestOffer.url,
-    isDirectRetailerUrl: bestOffer.isDirectRetailerUrl,
+    isDirectRetailerUrl: true,
     image: primaryObj.primaryImage || primaryObj.image,
     images: primaryObj.images || [primaryObj.image].filter(Boolean),
     rating: reviews.rating || primaryObj.rating,
@@ -395,16 +439,7 @@ export const getProductDetails = async (id) => {
     availability: bestOffer.availability || 'In Stock',
     description: primaryObj.description || `${primaryObj.title} with verified multi-retailer price tracking.`,
     bestOffer,
-    offers: offers.map(o => ({
-      retailer: o.retailer,
-      price: o.price,
-      mrp: o.mrp,
-      currency: o.currency,
-      url: o.url,
-      isDirectRetailerUrl: o.isDirectRetailerUrl,
-      availability: o.availability,
-      lastCheckedAt: o.lastCheckedAt
-    })),
+    offers: enrichedOffers,
     reviews
   };
 };
@@ -423,7 +458,7 @@ export const comparePrices = async (query) => {
 
   const results = (details.offers && details.offers.length > 0)
     ? details.offers
-    : [{ retailer: firstItem.retailer, price: firstItem.price, url: firstItem.productUrl, availability: 'In Stock' }];
+    : [{ retailer: firstItem.retailer, store: firstItem.retailer, price: firstItem.price, url: firstItem.productUrl, availability: 'In Stock' }];
 
   return {
     bestPrice: details.price || firstItem.price,

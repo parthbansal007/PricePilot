@@ -12,7 +12,7 @@ export const protect = async (req, res, next) => {
   }
 
   // Explicit dev bypass ONLY when NODE_ENV=development AND ALLOW_DEV_AUTH_BYPASS=true
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = (process.env.NODE_ENV || 'development') !== 'production';
   const allowDevBypass = process.env.ALLOW_DEV_AUTH_BYPASS === 'true';
 
   if (isDev && allowDevBypass && (token === 'dev-bypass' || req.headers['x-dev-bypass'] === 'true')) {
@@ -54,7 +54,7 @@ export const optionalProtect = async (req, res, next) => {
     token = req.headers.authorization.split(' ')[1];
   }
 
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = (process.env.NODE_ENV || 'development') !== 'production';
   const allowDevBypass = process.env.ALLOW_DEV_AUTH_BYPASS === 'true';
 
   if (isDev && allowDevBypass && (token === 'dev-bypass' || req.headers['x-dev-bypass'] === 'true')) {

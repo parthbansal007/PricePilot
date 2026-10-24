@@ -74,18 +74,29 @@ app.use((req, res, next) => {
 // Request tracking and structured logging
 app.use(requestLogger);
 
-// Strict CORS
+// Dynamic CORS with support for cloud deployments (Render, Vercel, Netlify)
 const allowedOrigins = [
   env.FRONTEND_URL,
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  'http://localhost:5000',
+  'http://127.0.0.1:5000',
   'https://pricepilot-zr6n.onrender.com'
 ].filter(Boolean);
 
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // Allow cloud provider previews and domains
+  if (/^https:\/\/.*\.onrender\.com$/.test(origin)) return true;
+  if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return true;
+  if (/^https:\/\/.*\.netlify\.app$/.test(origin)) return true;
+  return false;
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
     return callback(new Error(`CORS blocked request from origin: ${origin}`));
@@ -190,23 +201,42 @@ app.use(errorHandler);
 // Database connection
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(env.MONGODB_URI, { family: 4 });
+    const conn = await mongoose.connect(env.MONGODB_URI, { family: 4, serverSelectionTimeoutMS: 5000 });
     isDbConnected = true;
     logger.info({ host: conn.connection.host }, 'MongoDB Connected successfully');
     seedOfferRules().catch(err => logger.debug({ error: err.message }, 'Offer rules seed skipped'));
   } catch (error) {
+    // If failed due to DNS SRV lookup on Windows/ISP, retry using Google/Cloudflare DNS
+    if (error.message.includes('querySrv') || error.message.includes('ECONNREFUSED')) {
+      try {
+        logger.warn('DNS lookup failed for MongoDB Atlas. Retrying with public DNS (8.8.8.8, 1.1.1.1)...');
+        const dns = await import('dns');
+        dns.default.setServers(['8.8.8.8', '1.1.1.1']);
+        const conn = await mongoose.connect(env.MONGODB_URI, { family: 4, serverSelectionTimeoutMS: 5000 });
+        isDbConnected = true;
+        logger.info({ host: conn.connection.host }, 'MongoDB Connected successfully via DNS fallback');
+        seedOfferRules().catch(err => logger.debug({ error: err.message }, 'Offer rules seed skipped'));
+        return;
+      } catch (retryError) {
+        error = retryError;
+      }
+    }
+
     logger.error({ error: error.message }, 'MongoDB connection error');
     if (env.NODE_ENV === 'production') {
       logger.fatal('Database connection is mandatory in production. Crashing safely.');
       process.exit(1);
     } else {
-      logger.warn('Running without active MongoDB connection (development fallback mode).');
+      // In development fallback mode, disable buffering so queries fail or fallback immediately
+      // instead of hanging the entire server for 10 seconds per request
+      mongoose.set('bufferCommands', false);
+      logger.warn('Running without active MongoDB connection (development fallback mode, buffering disabled).');
     }
   }
 };
 
 let server;
-connectDB().then(() => {
+connectDB().finally(() => {
   server = app.listen(PORT, '0.0.0.0', () => {
     logger.info(`Server running on port ${PORT} (0.0.0.0) in ${env.NODE_ENV} mode`);
   });

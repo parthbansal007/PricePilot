@@ -160,7 +160,7 @@ export function BudgetPlannerPage() {
            <h3 className="text-sm font-bold text-primary mb-2">Spending Insight</h3>
            <p className="text-xs text-textPrimary">
              {categoryData.length > 0 
-               ? `${categoryData.sort((a,b)=>b.value-a.value)[0].name} is your largest spending category this month.`
+               ? `${[...categoryData].sort((a,b)=>b.value-a.value)[0].name} is your largest spending category this month.`
                : "Start tracking to get personalized financial insights."}
            </p>
         </div>

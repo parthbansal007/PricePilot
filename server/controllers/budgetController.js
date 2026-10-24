@@ -85,7 +85,8 @@ export const getExpenses = async (req, res) => {
 export const addExpense = async (req, res) => {
   try {
     const userId = req.user.uid;
-    const { title, amount, category, date, retailer, paymentMethod, notes, productId, type } = req.body;
+    const { amount, category, date, retailer, paymentMethod, notes, productId, type } = req.body;
+    const title = req.body.title || req.body.description;
 
     if (!amount || !category || !title) {
       return res.status(400).json({ message: 'Amount, category, and title are required' });

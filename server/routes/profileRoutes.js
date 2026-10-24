@@ -43,12 +43,16 @@ import { validateRequest } from '../middleware/validateRequest.js';
 const updateProfileSchema = {
   body: z.object({
     name: z.string().min(1).max(100).optional(),
+    monthlyBudget: z.number().nonnegative().optional(),
+    preferredCurrency: z.string().optional(),
+    profilePicture: z.string().optional(),
+    preferences: z.any().optional(),
     notificationPreferences: z.object({
       priceDropThreshold: z.number().nonnegative().optional(),
       emailAlerts: z.boolean().optional(),
       pushAlerts: z.boolean().optional()
     }).optional()
-  })
+  }).passthrough()
 };
 
 router.get('/', protect, getProfile);

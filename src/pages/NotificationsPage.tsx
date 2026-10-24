@@ -24,7 +24,7 @@ export function NotificationsPage() {
   const markAllAsRead = async () => {
     try {
       await notificationService.markAllAsRead();
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setNotifications(notifications.map(n => ({ ...n, isRead: true, read: true })));
     } catch (e) {
       console.error(e);
     }
@@ -33,7 +33,7 @@ export function NotificationsPage() {
   const markAsRead = async (id: string) => {
     try {
       await notificationService.markAsRead(id);
-      setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));
+      setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true, read: true } : n));
     } catch (e) {
       console.error(e);
     }
@@ -70,11 +70,12 @@ export function NotificationsPage() {
             <div className="p-8 text-center text-textSecondary">No notifications to show.</div>
           ) : notifications.map((notification) => {
             const { icon: Icon, color, bg } = getIconAndColor(notification.type);
+            const isRead = Boolean(notification.read || notification.isRead);
             return (
               <div 
                 key={notification._id} 
-                className={`p-4 flex gap-4 transition-colors hover:bg-secondaryBg ${!notification.isRead ? 'bg-primary/5' : ''}`}
-                onClick={() => !notification.isRead && markAsRead(notification._id)}
+                className={`notification-item p-4 flex gap-4 transition-colors hover:bg-secondaryBg ${!isRead ? 'bg-primary/5' : ''}`}
+                onClick={() => !isRead && markAsRead(notification._id)}
               >
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${bg} ${color}`}>
                   <Icon className="w-5 h-5" />

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
 import Budget from '../models/Budget.js';
@@ -56,7 +57,10 @@ export const getBetterConfigurations = async (productId, userId) => {
     const selectedProduct = await getProductDetails(productId);
     if (!selectedProduct) throw new Error('Selected product not found');
 
-    const user = await User.findById(userId);
+    let user = null;
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      user = await User.findById(userId);
+    }
     const preferences = user?.preferences || { price: 8, performance: 10 };
 
     const budget = await Budget.findOne({ userId });
@@ -76,8 +80,9 @@ export const getBetterConfigurations = async (productId, userId) => {
     
     // We'll search DB for products with similar brand/model to avoid provider rate limits, 
     // or fetch from provider if DB is empty. Here we just fetch DB items.
+    const dbFilter = mongoose.Types.ObjectId.isValid(productId) ? { _id: { $ne: productId } } : {};
     let candidates = await Product.find({
-       _id: { $ne: productId },
+       ...dbFilter,
        $text: { $search: selectedProduct.brand || queryName }
     }).limit(10);
     

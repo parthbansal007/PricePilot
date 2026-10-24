@@ -63,7 +63,7 @@ export default class SearchApiDiscoveryAdapter extends DiscoveryProvider {
       if (query && matchScore < 35) continue;
 
       const rawUrl = item.product_link || item.merchant?.link || item.link || '';
-      const directUrl = extractRetailerUrl(rawUrl);
+      const directUrl = extractRetailerUrl(rawUrl, source, item.title);
       const isDirect = isDirectRetailerUrl(directUrl);
       const price = item.extracted_price || extractPrice(item.price);
       const info = extractProductInfo(item.title);

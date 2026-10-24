@@ -6,7 +6,8 @@ import { getProductDetails } from '../services/productService.js';
 // @access  Private
 export const addToWishlist = async (req, res) => {
   try {
-    const { productId, productName, image, currentPrice, currency, retailer } = req.body;
+    const { productId, image, currentPrice, targetPrice, status, currency, retailer } = req.body;
+    const productName = req.body.productName || req.body.title;
     const userId = req.user.uid;
 
     if (!productId || !productName) {
@@ -31,7 +32,9 @@ export const addToWishlist = async (req, res) => {
       productName,
       image,
       currentPrice,
-      currency,
+      targetPrice: targetPrice !== undefined ? targetPrice : currentPrice,
+      status: status || 'watching',
+      currency: currency || 'INR',
       retailer
     });
 
@@ -39,6 +42,44 @@ export const addToWishlist = async (req, res) => {
   } catch (error) {
     console.error('Wishlist add error:', error);
     res.status(500).json({ message: 'Server error while adding to wishlist.' });
+  }
+};
+
+// @desc    Update wishlist item status or targetPrice
+// @route   PATCH /api/wishlist/:id
+// @access  Private
+export const updateWishlistItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, targetPrice } = req.body;
+    const userId = req.user.uid;
+
+    const updateFields = {};
+    if (status !== undefined) {
+      const validStatuses = ['watching', 'price-dropped', 'ready', 'purchased'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+      }
+      updateFields.status = status;
+    }
+    if (targetPrice !== undefined) {
+      updateFields.targetPrice = Number(targetPrice);
+    }
+
+    const wishlistItem = await Wishlist.findOneAndUpdate(
+      { _id: id, userId },
+      { $set: updateFields },
+      { returnDocument: 'after' }
+    );
+
+    if (!wishlistItem) {
+      return res.status(404).json({ message: 'Wishlist item not found' });
+    }
+
+    res.json({ message: 'Wishlist item updated successfully', wishlistItem });
+  } catch (error) {
+    console.error('Wishlist update error:', error);
+    res.status(500).json({ message: 'Server error while updating wishlist item.' });
   }
 };
 

@@ -100,20 +100,17 @@ npm run dev
 
 ---
 
-## 🧪 Testing & Verification
+## 🚀 Production & Cloud Deployment
 
 ```bash
-# Run unit & integration test suite (48 tests)
-npm test
-
-# Run linter
-npm run lint
-
-# Build production bundle
+# Build frontend production bundle
 npm run build
 
-# Run Playwright E2E tests
-npm run test:e2e
+# Start full-stack production server (serves frontend bundle + backend APIs)
+npm start
+
+# Run code linter
+npm run lint
 ```
 
 ---

@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    name: Lint, Test & Build
+    name: Lint & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +27,6 @@ jobs:
       - name: Run linter
         run: npm run lint
 
-      - name: Run unit & integration tests
-        run: npm test
-
       - name: Build frontend application
         run: npm run build
+

@@ -22,9 +22,18 @@ const wishlistSchema = new mongoose.Schema(
     currentPrice: {
       type: Number,
     },
+    targetPrice: {
+      type: Number,
+    },
+    status: {
+      type: String,
+      enum: ['watching', 'price-dropped', 'ready', 'purchased'],
+      default: 'watching',
+      index: true,
+    },
     currency: {
       type: String,
-      default: 'USD',
+      default: 'INR',
     },
     retailer: {
       type: String,
