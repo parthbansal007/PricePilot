@@ -1,23 +1,48 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Tag, ExternalLink, ShieldCheck } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, MapPin, Tag, ExternalLink, ShieldCheck, X } from 'lucide-react';
 import { productService } from '../../services/productService';
 import { Button } from '../../components/ui/Button';
+import toast from 'react-hot-toast';
 
 export function ComparePricesPage() {
   const [query, setQuery] = useState('');
   const [comparison, setComparison] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query) return;
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return;
     
+    // Abort previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    // Immediately remove old comparisons from the page!
+    setComparison(null);
     setIsLoading(true);
+
     try {
-      const data = await productService.compareProducts(query);
+      const data = await productService.compareProducts(cleanQuery, {
+        signal: abortControllerRef.current.signal
+      });
       setComparison(data);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error("Error comparing products", error);
+      setComparison(null);
+      toast.error('Could not compare prices for this product. Please try another search.');
     } finally {
       setIsLoading(false);
     }

@@ -2,7 +2,13 @@ import React from 'react';
 import { cn } from '../../utils/cn';
 import { Loader2 } from 'lucide-react';
 
-const Button = React.forwardRef(
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg' | 'icon';
+  isLoading?: boolean;
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading = false, children, disabled, ...props }, ref) => {
     
     const variants = {

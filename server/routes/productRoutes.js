@@ -17,7 +17,14 @@ const router = express.Router();
 
 const searchQuerySchema = {
   query: z.object({
-    q: z.string().min(1, 'Search query is required').max(200)
+    q: z.string().max(200).optional(),
+    category: z.string().max(100).optional()
+  }).refine(data => {
+    const hasQ = Boolean(data.q && data.q.trim().length > 0);
+    const hasCat = Boolean(data.category && data.category.trim().length > 0);
+    return hasQ || hasCat;
+  }, {
+    message: 'Search query (q) or category is required.'
   })
 };
 

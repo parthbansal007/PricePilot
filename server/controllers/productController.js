@@ -7,14 +7,9 @@ import * as productService from '../services/productService.js';
 // @access  Private
 export const searchProducts = async (req, res) => {
   try {
-    const { q } = req.query;
-    
-    if (!q) {
-      return res.status(400).json({ message: 'Search query is required' });
-    }
-
-    const results = await productService.searchProducts(q);
-    res.json(results);
+    const { q, category } = req.query;
+    const results = await productService.searchProducts(q || '', { category });
+    res.json(results || []);
   } catch (error) {
     console.error('Product search error:', error.message);
     res.status(503).json({ message: 'Product search service is temporarily unavailable.' });

@@ -75,14 +75,18 @@ export const mockProducts = [
 ];
 
 class MockProductProvider {
-  async searchProducts(query, filters = {}) {
+  async searchProducts(query: string, filters: Record<string, any> = {}) {
     return new Promise((resolve) => {
+      // Snappy response for smooth UI
       setTimeout(() => {
         let results = [...mockProducts];
         
-        if (query) {
-          const q = query.toLowerCase();
-          results = results.filter(p => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q));
+        if (query && typeof query === 'string' && query.trim()) {
+          const q = query.trim().toLowerCase();
+          results = results.filter(p => 
+            (p.name || '').toLowerCase().includes(q) || 
+            (p.brand || '').toLowerCase().includes(q)
+          );
         }
 
         if (filters.category) {
@@ -90,11 +94,11 @@ class MockProductProvider {
         }
 
         resolve(results);
-      }, 800); // simulate network delay
+      }, 20);
     });
   }
 
-  async getProductDetails(id) {
+  async getProductDetails(id: string) {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const product = mockProducts.find(p => p.id === id);
@@ -112,19 +116,64 @@ class MockProductProvider {
         } else {
           reject(new Error('Product not found'));
         }
-      }, 500);
+      }, 50);
     });
+  }
+
+  async getProductHistory(_id: string) {
+    return [];
+  }
+
+  async getProductHistoryWithStats(_id: string) {
+    return { history: [], dataSources: null };
+  }
+
+  async compareProducts(query: string) {
+    const list = await this.searchProducts(query) as any[];
+    return {
+      bestPrice: list[0]?.currentPrice || 0,
+      currency: 'INR',
+      title: list[0]?.name || query,
+      results: list.map(item => ({
+        retailer: item.lowestStore || 'Amazon',
+        store: item.lowestStore || 'Amazon',
+        price: item.currentPrice,
+        url: '#',
+        availability: 'In Stock'
+      }))
+    };
   }
 }
 
 class ExternalProductProvider {
-  async searchProducts(query, filters = {}) {
-    const response = await api.get('/products/search', { params: { q: query, ...filters } });
-    return response.data;
+  async searchProducts(query: string, filters: Record<string, any> = {}, options: { signal?: AbortSignal } = {}) {
+    const params: Record<string, string> = {};
+    if (query && typeof query === 'string' && query.trim()) {
+      params.q = query.trim();
+    }
+    if (filters.category) {
+      params.category = filters.category;
+    }
+    const response = await api.get('/products/search', { 
+      params,
+      signal: options?.signal
+    });
+    let results = response.data || [];
+    
+    // Client-side category safeguard
+    if (filters.category && Array.isArray(results)) {
+      const catLower = filters.category.toLowerCase();
+      results = results.filter((p: any) => {
+        const prodCat = (p.category || '').toLowerCase();
+        return !prodCat || prodCat.includes(catLower);
+      });
+    }
+
+    return results;
   }
 
-  async getProductDetails(id) {
-    const response = await api.get(`/products/${id}`);
+  async getProductDetails(id: string, options: { signal?: AbortSignal } = {}) {
+    const response = await api.get(`/products/${id}`, { signal: options?.signal });
     const data = response.data;
     
     // Use offers from backend if available, otherwise fallback to empty
@@ -162,9 +211,12 @@ class ExternalProductProvider {
     }
   }
 
-  async compareProducts(query: string) {
+  async compareProducts(query: string, options: { signal?: AbortSignal } = {}) {
     try {
-      const response = await api.get('/products/compare', { params: { q: query } });
+      const response = await api.get('/products/compare', { 
+        params: { q: query },
+        signal: options?.signal
+      });
       return response.data;
     } catch (e) {
       console.error("Failed to compare products", e);

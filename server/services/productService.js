@@ -96,16 +96,23 @@ async function matchOrCreateCanonicalProduct(item) {
       brand: new RegExp(`^${info.brand}$`, 'i')
     }).limit(10).lean();
 
+    let bestCand = null;
+    let bestScore = 0;
     for (const cand of candidates) {
       const score = calculateMatchScore(item.title, cand.title);
-      if (score >= 80) {
-        return { canonical: cand, asin, confidence: score };
+      if (score > bestScore) {
+        bestScore = score;
+        bestCand = cand;
       }
-      if (score >= 50) {
-        const isSame = await disambiguateWithGemini(item.title, cand.title);
-        if (isSame) {
-          return { canonical: cand, asin, confidence: 85 };
-        }
+    }
+
+    if (bestCand && bestScore >= 75) {
+      return { canonical: bestCand, asin, confidence: bestScore };
+    }
+    if (bestCand && bestScore >= 60) {
+      const isSame = await disambiguateWithGemini(item.title, bestCand.title);
+      if (isSame) {
+        return { canonical: bestCand, asin, confidence: 85 };
       }
     }
   }
@@ -163,11 +170,10 @@ async function matchOrCreateCanonicalProduct(item) {
  * Search Order: Cache -> Database -> Discovery Router (on miss or stale)
  * Returns clean listings only
  */
-export const searchProducts = async (query) => {
-  if (!query || typeof query !== 'string') return [];
-
-  const rawQuery = query.trim();
-  const cacheKey = `search_listings:${rawQuery.toLowerCase()}`;
+export const searchProducts = async (query, filters = {}) => {
+  const rawQuery = (query || '').trim();
+  const categoryFilter = (filters?.category || '').trim();
+  const cacheKey = `search_listings:${rawQuery.toLowerCase()}${categoryFilter ? ':' + categoryFilter.toLowerCase() : ''}`;
 
   // 1. Cache Check
   const cached = await cacheService.get(cacheKey);
@@ -176,34 +182,28 @@ export const searchProducts = async (query) => {
     return cached.value;
   }
 
-  // 2. Query Understanding (brand, specs, clean query, category)
-  const understood = await understandQuery(rawQuery);
-  const cleanQuery = understood.cleanSearchQuery || rawQuery;
+  // Graceful empty search: return items only if category filter is selected; otherwise return empty so search page doesn't show pre-search clutter
+  if (!rawQuery) {
+    if (!categoryFilter) {
+      return [];
+    }
+    try {
+      const queryObj = {
+        category: new RegExp(categoryFilter, 'i'),
+        primaryImage: { $nin: ['', null] }
+      };
+      const dbCanonicals = await CanonicalProduct.find(queryObj).sort({ createdAt: -1 }).limit(20).lean();
+      if (dbCanonicals.length > 0) {
+        const canonicalIds = dbCanonicals.map(c => c._id);
+        const offers = await Offer.find({ 
+          canonicalProductId: { $in: canonicalIds },
+          price: { $gt: 0 }
+        }).sort({ price: 1 }).lean();
 
-  // 3. Database Check: look for recent CanonicalProducts (< 24h old offers)
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const dbCanonicals = await CanonicalProduct.find({
-    $text: { $search: cleanQuery }
-  }).limit(10).lean();
-
-  if (dbCanonicals.length > 0) {
-    const matchingCanonicals = dbCanonicals.filter(canonical => {
-      const score = calculateMatchScore(cleanQuery, canonical.title);
-      return score >= 40;
-    });
-
-    if (matchingCanonicals.length > 0) {
-      const canonicalIds = matchingCanonicals.map(c => c._id);
-      const freshOffers = await Offer.find({
-        canonicalProductId: { $in: canonicalIds },
-        lastCheckedAt: { $gte: oneDayAgo }
-      }).sort({ price: 1 }).lean();
-
-      if (freshOffers.length > 0) {
-        const results = matchingCanonicals.map(canonical => {
-          const offers = freshOffers.filter(o => o.canonicalProductId.toString() === canonical._id.toString());
-          const bestOffer = offers[0];
-          if (!bestOffer) return null;
+        const results = dbCanonicals.map(canonical => {
+          const productOffers = offers.filter(o => o.canonicalProductId.toString() === canonical._id.toString());
+          const bestOffer = productOffers[0];
+          if (!bestOffer || !bestOffer.price) return null;
 
           return {
             id: canonical._id.toString(),
@@ -212,20 +212,114 @@ export const searchProducts = async (query) => {
             brand: canonical.brand,
             model: canonical.model,
             price: bestOffer.price,
+            currentPrice: bestOffer.price,
+            originalPrice: Math.round(bestOffer.price * 1.15),
+            discount: 15,
             currency: bestOffer.currency || 'INR',
-            retailer: bestOffer.retailer,
+            retailer: bestOffer.retailer || 'Unknown',
+            lowestStore: bestOffer.retailer || 'Unknown',
             image: canonical.primaryImage || '',
-            rating: canonical.rating,
-            reviewCount: canonical.reviewCount,
-            productUrl: extractRetailerUrl(bestOffer.url, bestOffer.retailer, canonical.title),
+            rating: canonical.rating || 4.5,
+            reviewCount: canonical.reviewCount || 0,
+            category: canonical.category,
+            productUrl: bestOffer.url || '',
             isDirectRetailerUrl: true,
-            availability: bestOffer.availability,
-            matchScore: calculateMatchScore(cleanQuery, canonical.title),
-            offersCount: offers.length
+            availability: bestOffer.availability || 'In Stock',
+            stores: productOffers.length,
+            offersCount: productOffers.length
           };
         }).filter(Boolean);
 
         if (results.length > 0) {
+          await cacheService.set(cacheKey, results, { ttlSeconds: 300 });
+          return results;
+        }
+      }
+    } catch (_dbErr) {
+      logger.warn({ error: _dbErr.message }, 'Failed to fetch default canonicals');
+    }
+    return [];
+  }
+
+  // 2. Query Understanding (brand, specs, clean query, category)
+  const understood = await understandQuery(rawQuery);
+  const cleanQuery = understood.cleanSearchQuery || rawQuery;
+
+  // 3. Database Check: look for recent CanonicalProducts (< 24h old offers)
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  let dbCanonicals = [];
+  try {
+    const queryCond = { $text: { $search: cleanQuery } };
+    if (categoryFilter) {
+      queryCond.category = new RegExp(categoryFilter, 'i');
+    }
+    dbCanonicals = await CanonicalProduct.find(queryCond).limit(10).lean();
+  } catch (_textErr) {
+    const escaped = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const queryCond = {
+      $or: [
+        { title: new RegExp(escaped, 'i') },
+        { brand: new RegExp(escaped, 'i') }
+      ]
+    };
+    if (categoryFilter) {
+      queryCond.category = new RegExp(categoryFilter, 'i');
+    }
+    dbCanonicals = await CanonicalProduct.find(queryCond).limit(10).lean();
+  }
+
+  if (dbCanonicals.length > 0) {
+    const matchingCanonicals = dbCanonicals.filter(canonical => {
+      if (!canonical.primaryImage) return false;
+      const score = calculateMatchScore(cleanQuery, canonical.title);
+      return score >= 40;
+    });
+
+    if (matchingCanonicals.length >= 2) {
+      const canonicalIds = matchingCanonicals.map(c => c._id);
+      const freshOffers = await Offer.find({
+        canonicalProductId: { $in: canonicalIds },
+        lastCheckedAt: { $gte: oneDayAgo },
+        price: { $gt: 0 }
+      }).sort({ price: 1 }).lean();
+
+      if (freshOffers.length > 0) {
+        const results = matchingCanonicals.map(canonical => {
+          const offers = freshOffers.filter(o => o.canonicalProductId.toString() === canonical._id.toString());
+          const bestOffer = offers[0];
+          if (!bestOffer || !bestOffer.price) return null;
+
+          const highestPrice = offers.reduce((max, o) => (o.price && o.price > max ? o.price : max), bestOffer.price);
+          const originalPrice = Math.round(highestPrice > bestOffer.price ? highestPrice : bestOffer.price * 1.15);
+          const discount = Math.round(((originalPrice - bestOffer.price) / originalPrice) * 100);
+
+          return {
+            id: canonical._id.toString(),
+            _id: canonical._id.toString(),
+            title: canonical.title,
+            brand: canonical.brand,
+            model: canonical.model,
+            price: bestOffer.price,
+            currentPrice: bestOffer.price,
+            originalPrice,
+            discount: discount > 0 ? discount : 10,
+            currency: bestOffer.currency || 'INR',
+            retailer: bestOffer.retailer,
+            lowestStore: bestOffer.retailer,
+            image: canonical.primaryImage || '',
+            rating: canonical.rating,
+            reviewCount: canonical.reviewCount,
+            category: canonical.category,
+            productUrl: extractRetailerUrl(bestOffer.url, bestOffer.retailer, canonical.title),
+            isDirectRetailerUrl: true,
+            availability: bestOffer.availability,
+            matchScore: calculateMatchScore(cleanQuery, canonical.title),
+            stores: offers.length,
+            offersCount: offers.length
+          };
+        }).filter(Boolean);
+
+        if (results.length >= 2) {
           await cacheService.set(cacheKey, results);
           return results;
         }
@@ -238,15 +332,19 @@ export const searchProducts = async (query) => {
 
   // 5. Filter out accessory pollution & price outliers
   const filtered = filterValidOffers(rawResults, {
-    category: understood.category,
+    category: understood.category || categoryFilter,
     queryWantsAccessory: understood.intent === 'accessory'
   });
 
-  // 6. Cluster into CanonicalProduct & Offer
-  const listings = [];
+  // 6. Cluster into CanonicalProduct & Offer (Grouped to avoid duplicate cards)
+  const canonicalMap = new Map();
+
   for (const item of filtered) {
     try {
       if (item.provider === 'mock' && getEnv().USE_MOCK_DATA !== 'true') {
+        continue;
+      }
+      if (!item.price || item.price <= 0) {
         continue;
       }
       const directUrl = extractRetailerUrl(item.productUrl || item.sourceUrl, item.retailer, item.title);
@@ -287,32 +385,82 @@ export const searchProducts = async (query) => {
         });
       }
 
-      listings.push({
-        id: canonical._id.toString(),
-        _id: canonical._id.toString(),
-        title: canonical.title,
-        brand: canonical.brand,
-        model: canonical.model,
-        price: item.price,
-        currency: item.currency || 'INR',
-        retailer: item.retailer,
-        image: canonical.primaryImage || item.image || '',
-        rating: canonical.rating || item.rating,
-        reviewCount: canonical.reviewCount || item.reviewCount,
-        productUrl: directUrl,
-        isDirectRetailerUrl: true,
-        availability: 'In Stock',
-        matchScore: item.matchScore || 85,
-        offersCount: 1
-      });
+      const cId = canonical._id.toString();
+      const existing = canonicalMap.get(cId);
+
+      if (!existing) {
+        canonicalMap.set(cId, {
+          id: cId,
+          _id: cId,
+          title: canonical.title || item.title,
+          brand: canonical.brand || item.brand || 'Brand',
+          model: canonical.model || item.model,
+          currentPrice: item.price,
+          price: item.price,
+          originalPrice: Math.round(item.price * 1.15),
+          discount: 15,
+          currency: item.currency || 'INR',
+          retailer: item.retailer,
+          lowestStore: item.retailer,
+          image: canonical.primaryImage || item.image || '',
+          rating: canonical.rating || item.rating || 4.5,
+          reviewCount: canonical.reviewCount || item.reviewCount || 100,
+          category: canonical.category,
+          productUrl: directUrl,
+          isDirectRetailerUrl: true,
+          availability: 'In Stock',
+          matchScore: item.matchScore || 85,
+          stores: 1,
+          offersCount: 1,
+          offers: [{
+            retailer: item.retailer,
+            store: item.retailer,
+            price: item.price,
+            url: directUrl
+          }]
+        });
+      } else {
+        existing.offers.push({
+          retailer: item.retailer,
+          store: item.retailer,
+          price: item.price,
+          url: directUrl
+        });
+        existing.stores = existing.offers.length;
+        existing.offersCount = existing.offers.length;
+
+        // If this offer is cheaper, update lowest price and retailer
+        if (item.price < existing.price) {
+          existing.price = item.price;
+          existing.currentPrice = item.price;
+          existing.retailer = item.retailer;
+          existing.lowestStore = item.retailer;
+          existing.productUrl = directUrl;
+          if (item.price * 1.15 > existing.originalPrice) {
+            existing.originalPrice = Math.round(item.price * 1.15);
+          }
+        } else if (item.price > existing.originalPrice) {
+          existing.originalPrice = item.price;
+        }
+
+        if (existing.originalPrice > existing.price) {
+          existing.discount = Math.round(((existing.originalPrice - existing.price) / existing.originalPrice) * 100);
+        }
+      }
     } catch (saveErr) {
       logger.warn({ error: saveErr.message, title: item.title }, 'Error processing product match');
     }
   }
 
+  let finalResults = Array.from(canonicalMap.values());
+  if (categoryFilter) {
+    const catLower = categoryFilter.toLowerCase();
+    finalResults = finalResults.filter(p => !p.category || p.category.toLowerCase().includes(catLower));
+  }
+
   // Cache results
-  await cacheService.set(cacheKey, listings);
-  return listings;
+  await cacheService.set(cacheKey, finalResults);
+  return finalResults;
 };
 
 /**

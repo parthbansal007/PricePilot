@@ -39,7 +39,8 @@ export const queryUnderstandingSchema = z.object({
 const KNOWN_BRANDS = [
   'apple', 'samsung', 'sony', 'dell', 'hp', 'lenovo', 'asus', 'acer', 'oneplus',
   'xiaomi', 'realme', 'boat', 'noise', 'lg', 'motorola', 'google', 'nothing',
-  'bose', 'sennheiser', 'jbl', 'zebronics', 'boult', 'logitech', 'canon', 'nikon'
+  'bose', 'sennheiser', 'jbl', 'zebronics', 'boult', 'logitech', 'canon', 'nikon',
+  'nike', 'adidas', 'puma', 'zara', 'h&m', 'levis', 'ikea', 'philips'
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -48,7 +49,9 @@ const CATEGORY_KEYWORDS = {
   headphones: ['headphone', 'headphones', 'earphone', 'earphones', 'earbuds', 'airpods', 'tws'],
   monitor: ['monitor', 'display', 'screen'],
   smartwatch: ['smartwatch', 'watch', 'band', 'fitness tracker'],
-  tablet: ['tablet', 'ipad', 'tab']
+  tablet: ['tablet', 'ipad', 'tab'],
+  clothing: ['shirt', 'tshirt', 't-shirt', 'jacket', 'hoodie', 'jeans', 'dress', 'clothing', 'shoes', 'sneakers'],
+  home: ['furniture', 'chair', 'table', 'desk', 'lamp', 'kitchen', 'home', 'appliance', 'sofa', 'bed']
 };
 
 /**
@@ -147,12 +150,16 @@ export async function understandQuery(rawQuery) {
   const env = getEnv();
   const heuristicResult = parseQueryHeuristic(rawQuery);
 
-  if (!env.GEMINI_API_KEY || env.USE_MOCK_DATA === 'true') {
+  // Return heuristic immediately (0ms) for typical e-commerce queries (brand/category recognized or short query)
+  const wordCount = rawQuery.trim().split(/\s+/).length;
+  const isDirectProductQuery = heuristicResult.brand || heuristicResult.category || wordCount <= 4;
+
+  if (isDirectProductQuery || !env.GEMINI_API_KEY || env.USE_MOCK_DATA === 'true') {
     await cacheService.set(cacheKey, heuristicResult, { ttlSeconds: 86400 });
     return heuristicResult;
   }
 
-  // Attempt Gemini with a strict 2500ms timeout so search remains fast
+  // Attempt Gemini with a tight 1200ms timeout for long unstructured conversational queries
   try {
     const aiPromise = (async () => {
       const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
@@ -169,7 +176,7 @@ Extract structured data into JSON matching this exact schema:
 {
   "brand": string or null,
   "model": string or null,
-  "category": "laptop" | "smartphone" | "headphones" | "monitor" | "smartwatch" | "tablet" | "electronics" | null,
+  "category": "laptop" | "smartphone" | "headphones" | "monitor" | "smartwatch" | "tablet" | "clothing" | "home" | "electronics" | null,
   "specifications": {
     "cpu": string or null,
     "gpu": string or null,
@@ -195,7 +202,7 @@ Extract structured data into JSON matching this exact schema:
     })();
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Gemini query understanding timeout (2500ms)')), 2500)
+      setTimeout(() => reject(new Error('Gemini query understanding timeout (1200ms)')), 1200)
     );
 
     const validatedResult = await Promise.race([aiPromise, timeoutPromise]);

@@ -47,7 +47,7 @@ export const isAccessoryTitle = (title) => {
   if (!title) return false;
   const lower = title.toLowerCase();
   return config.accessoryKeywords.some(kw => {
-    const regex = new RegExp(`\\b${kw}\\b`, 'i');
+    const regex = new RegExp(`\\b${kw}s?\\b`, 'i');
     return regex.test(lower);
   });
 };
