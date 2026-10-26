@@ -2,7 +2,17 @@ import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export function Modal({ isOpen, onClose, title, children }) {
+import { cn } from '../../utils/cn';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
   // Close on Escape key
   useEffect(() => {
     const handleEsc = (e) => {
@@ -35,7 +45,10 @@ export function Modal({ isOpen, onClose, title, children }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-card p-6 shadow-soft"
+            className={cn(
+              "fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-card p-6 shadow-soft",
+              className
+            )}
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-textPrimary">{title}</h2>
